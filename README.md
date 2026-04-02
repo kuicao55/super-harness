@@ -22,11 +22,11 @@ A Claude Code skill plugin for structured, long-running software development pro
 
 ### 1. Install this plugin
 
-Clone this repo, then install it permanently into Claude Code:
+Clone this repo to wherever you like, then install it permanently into Claude Code:
 
 ```bash
-git clone https://github.com/your-org/claude-codex-harness ~/Applications/claude-codex-harness/claude-codex-harness
-claude plugins install ~/Applications/claude-codex-harness/claude-codex-harness
+git clone https://github.com/kuicao55/claude-codex-harness.git
+claude plugins install ./claude-codex-harness
 ```
 
 To verify it's installed:
@@ -45,7 +45,7 @@ claude plugins disable claude-codex-harness
 **Per-session only (no permanent install):** If you'd rather not install globally, pass `--plugin-dir` each time you launch Claude Code:
 
 ```bash
-claude --plugin-dir ~/Applications/claude-codex-harness/claude-codex-harness
+claude --plugin-dir /path/to/claude-codex-harness
 ```
 
 ### 2. (Optional) Install Codex integration
