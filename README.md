@@ -24,15 +24,26 @@ A Claude Code skill plugin for structured, long-running software development pro
 
 This plugin is distributed via [kuicao55/claude-plugins](https://github.com/kuicao55/claude-plugins), a central marketplace for all of kuicao55's Claude Code plugins.
 
-**Inside a Claude Code session, run:**
+| | |
+|---|---|
+| **Plugin name** | `claude-codex-harness` |
+| **Marketplace** | `kuicao-plugins` |
+
+**Step 1 — Add the marketplace** (one-time, inside a Claude Code session):
 
 ```
 /plugin marketplace add kuicao55/claude-plugins
 ```
 
+**Step 2 — Install this plugin:**
+
 ```
 /plugin install claude-codex-harness@kuicao-plugins
 ```
+
+> Tip: run `/plugin` to open the UI and browse all available plugins in the **Discover** tab.
+
+**Step 3 — Reload:**
 
 ```
 /reload-plugins
