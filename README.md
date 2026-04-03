@@ -71,11 +71,8 @@ claude --plugin-dir ./claude-codex-harness
 To enable `/codex` commands:
 
 ```bash
-# Install Codex CLI
-npm install -g @openai/codex
-
-# Install the official Claude Code plugin
-npm install -g @openai/codex-plugin-cc
+# Install the official Claude Code plugin (run in claude code)
+/plugin marketplace add openai/codex-plugin-cc
 ```
 
 Requires a ChatGPT subscription. After installation, restart Claude Code — `/codex` commands are auto-discovered.
