@@ -20,7 +20,7 @@ Before using any Codex engine, check availability:
 2. If setup reports Codex ready → codex_available = true
 3. If Codex missing and npm is available → offer: "Codex is not installed. /codex:setup can install it automatically. Install now? (yes/no)"
 4. If installed but not authenticated → prompt: "Please run !codex login to complete authentication"
-5. If unavailable for any reason → codex_available = false. All Codex Decision Points are silently skipped.
+5. If unavailable for any reason → `codex_available = false`. Orchestra must **still** present each stage’s Decision Point to the user; Codex options are omitted or marked unavailable, and the user confirms Claude subagent (or cancels). Do not silently skip asking.
 ```
 
 Set `codex_available` once at session start. Do not re-check during the session unless explicitly needed.

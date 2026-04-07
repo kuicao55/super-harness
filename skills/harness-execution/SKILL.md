@@ -9,6 +9,19 @@ Execute a plan task by task. Orchestra coordinates: Executor implements (TDD), S
 
 **Announce at start:** "I'm using the harness-execution skill with Orchestra / Executor / Reviewer architecture."
 
+<HARD-GATE>
+Until Code Quality Review returns an explicit PASS for the current task, Orchestra MUST NOT:
+
+- Edit application/source code, tests, or config (no `Update`, `Write`, `StrReplace`, or equivalent on product files)
+- Perform Spec Review or Code Quality Review inline (no "I'll review the code myself")
+- Skip Executor/Reviewer dispatch because the project is "small" or "simple"
+- Claim a task or milestone complete without both review stages and explicit verdicts
+
+Orchestra ONLY: load plan, ask user for engine choice each stage, dispatch Task/Subagent or Codex, merge results, update TodoWrite, update plan checkboxes after PASS, invoke activity-logging.
+
+Violating this gate invalidates the run; stop and restart the task with proper dispatch.
+</HARD-GATE>
+
 ## The Iron Law
 
 ```
@@ -44,7 +57,15 @@ Run `/codex:setup` to check if Codex is installed and authenticated.
 
 - If Codex is ready → set `codex_available = true`
 - If Codex is missing but npm is available → inform user: "Codex is not installed. `/codex:setup` can install it. Would you like to install now?"
-- If unavailable → set `codex_available = false`. Skip all Codex Decision Points silently.
+- If unavailable → set `codex_available = false`
+
+**When `codex_available = false`:** Do NOT silently skip user interaction. At each Decision Point (Executor, Spec Review, Code Quality Review), still ask the user explicitly, for example:
+
+> "Codex is not available for this session. For this stage, proceed with **Claude subagent only**? (yes/no)"
+
+If the user says no, pause and resolve (install Codex, or abort the stage). Never infer "no Codex → skip asking" or "small project → run inline."
+
+**Project size:** Few tasks or a single session does **not** relax O/E/R. Every plan task still runs Executor → Spec Review → Code Quality Review with dispatch and user engine confirmation per stage.
 
 ### Step 3: Engine Confirmation Policy (Mandatory)
 
@@ -65,6 +86,7 @@ ORCHESTRA MUST MAINTAIN A LIVE TODO LIST DURING EXECUTION.
 ```
 
 At all times:
+
 - Exactly one task is `in_progress`
 - Completed tasks are immediately marked `completed`
 - Blocked/deferred tasks are marked `pending` (or `cancelled` if explicitly dropped)
@@ -78,7 +100,9 @@ Repeat this flow for each task in the plan:
 
 ### Step 1: Executor Decision Point
 
-Present to user (mandatory, no skip):
+Present to user (mandatory, no skip).
+
+**When `codex_available = true`:**
 
 > "**Task N: \<task name\>**
 >
@@ -88,7 +112,11 @@ Present to user (mandatory, no skip):
 > 2. Codex rescue — `/codex:rescue` with optional `--model`/`--effort`
 >    (best for: previous BLOCKED, need faster/cheaper, late-session context degradation)"
 
-**If Claude subagent chosen:**
+**When `codex_available = false`:** Codex is not offered, but you MUST still ask:
+
+> "**Task N: \<task name\>** — Codex is unavailable. Proceed with **Claude subagent** Executor only? (yes/no)"
+
+**If Claude subagent chosen (or user confirms subagent-only):**
 
 Dispatch using Task/Subagent tooling with `executor-prompt.md` template. Provide:
 
@@ -136,7 +164,9 @@ Only shown when `codex_available = true` and Claude subagent Executor reports BL
 
 ### Step 2: Spec Review Decision Point
 
-Present to user after Executor completes (mandatory, no skip):
+Present to user after Executor completes (mandatory, no skip).
+
+**When `codex_available = true`:**
 
 > "**Executor completed Task N.** Choose Spec Reviewer engine:
 >
@@ -144,6 +174,10 @@ Present to user after Executor completes (mandatory, no skip):
 > 2. Codex review — `/codex:review` (standard read-only, not directable)
 >    Token cost: moderate
 > 3. Skip Spec Review (not recommended)"
+
+**When `codex_available = false`:** Still ask; do not default to inline review:
+
+> "**Executor completed Task N.** Codex is unavailable. Proceed with **Claude subagent** Spec Review only? (yes/no)"
 
 **If Claude subagent chosen:**
 
@@ -177,7 +211,9 @@ Handle Spec Reviewer verdict:
 
 ### Step 3: Code Quality Review Decision Point
 
-Present to user after Spec Review passes (mandatory, no skip):
+Present to user after Spec Review passes (mandatory, no skip).
+
+**When `codex_available = true`:**
 
 > "**Spec Review passed. Task N ready for Code Quality Review.** Choose engine:
 >
@@ -185,6 +221,10 @@ Present to user after Spec Review passes (mandatory, no skip):
 > 2. Codex adversarial — `/codex:adversarial-review` (directable, higher token cost)
 >    Good for: security-sensitive code, auth, payments, data access
 > 3. Both — Claude subagent + Codex dual review (maximum quality)"
+
+**When `codex_available = false`:** Still ask:
+
+> "**Spec Review passed. Task N ready for Code Quality Review.** Codex is unavailable. Proceed with **Claude subagent** Code Quality Review only? (yes/no)"
 
 **If Claude subagent chosen:**
 
@@ -272,6 +312,7 @@ Recommended sub-steps per task:
 4. `Task N — Post-task logging and plan update`
 
 As each sub-step starts/completes:
+
 - Update TodoWrite immediately
 - Keep exactly one `in_progress` sub-step
 - Close sub-steps in order

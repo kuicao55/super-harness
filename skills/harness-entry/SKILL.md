@@ -32,6 +32,8 @@ Route directly to `harness:harness-plan-writing`. No state check needed. The pla
 
 ### If invoked via `/harness:execute`
 
+**Execution gate (same as `commands/execute.md` and `harness-execution`):** Orchestra does not implement or review code directly. Route to `harness:harness-execution` and follow its HARD-GATE: dispatch Executor and both reviewers (subagent or Codex), confirm engine with the user every stage, maintain TodoWrite from the start, and only close a task after Code Quality Review **PASS**.
+
 Check if a plan file exists. Ask the user: "Which plan file should I execute? (Provide the path, or press Enter if there's only one plan in `docs/harness/plans/`)"
 
 Then route to `harness:harness-execution` with the specified plan.
