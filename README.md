@@ -173,54 +173,54 @@ All commands route through `harness-entry`, which initializes cross-cutting conc
 
 ```mermaid
 flowchart TD
-    A([User: /harness:brainstorm]) --> B[harness-entry\nroutes command]
+    A(["/harness:brainstorm"]) --> B["harness-entry: routes command"]
     B --> C[harness-brainstorming]
     C --> C1{Visual topic?}
-    C1 -->|yes| C2[Offer Visual Companion\nbrowser UI]
+    C1 -->|yes| C2[Offer Visual Companion]
     C1 -->|no| C3
-    C2 --> C3{Multiple\nsubsystems?}
-    C3 -->|yes| C4[Scope Decomposition\ndecompose → build order]
+    C2 --> C3{Multiple subsystems?}
+    C3 -->|yes| C4[Scope Decomposition]
     C3 -->|no| C5
-    C4 --> C5[Explore idea\nask clarifying questions]
+    C4 --> C5[Explore idea + clarify]
     C5 --> C6[Propose 2-3 approaches]
-    C6 --> C7[Write design spec\ndocs/harness/specs/]
+    C6 --> C7["Write design spec (docs/harness/specs/)"]
     C7 --> C8[Spec self-review]
     C8 --> C9{User approves?}
     C9 -->|revise| C7
-    C9 -->|approve| C10[Spec approved\nContinue to planning?]
+    C9 -->|approve| C10["Spec approved — continue to planning?"]
     C10 --> D[harness-plan-writing]
     D --> D1{Scale?}
     D1 -->|small| D2[Single plan.md]
-    D1 -->|large| D3[claude-progress.json\n+ Milestone 1 plan]
+    D1 -->|large| D3["claude-progress.json + Milestone 1 plan"]
     D2 --> D4[Plan self-review]
     D3 --> D4
-    D4 --> D5[Plan complete\nReady to execute?]
-    D5 --> E[harness-execution\nOrchestra mode]
-    E --> E1[Check Codex availability\n/codex:setup]
+    D4 --> D5["Plan complete — ready to execute?"]
+    D5 --> E["harness-execution (Orchestra)"]
+    E --> E1["Check Codex: /codex:setup"]
     E1 --> E2[Session engine preference]
     E2 --> F{For each task}
-    F --> F1[Executor Decision Point\nClaude or Codex]
-    F1 --> F2{Executor\nstatus?}
-    F2 -->|BLOCKED| F3[Codex Rescue\nDecision Point]
-    F3 --> F4[/codex:rescue\n--background]
+    F --> F1[Executor Decision Point]
+    F1 --> F2{Executor status?}
+    F2 -->|BLOCKED| F3[Codex Rescue Decision Point]
+    F3 --> F4["/codex:rescue --background"]
     F4 --> F2b
-    F2 -->|DONE| F2b[Spec Review Decision Point\nClaude or Codex]
-    F2b --> F5{Spec\nverdict?}
+    F2 -->|DONE| F2b[Spec Review Decision Point]
+    F2b --> F5{Spec verdict?}
     F5 -->|SPEC_ISSUES| F1
-    F5 -->|SPEC_COMPLIANT| F6[Code Quality Review\nDecision Point]
-    F6 --> F7{Quality\nverdict?}
+    F5 -->|SPEC_COMPLIANT| F6[Code Quality Review Decision Point]
+    F6 --> F7{Quality verdict?}
     F7 -->|FAIL| F1
-    F7 -->|PASS| F8[Log + update plan ✓]
+    F7 -->|PASS| F8["Log activity + update plan ✓"]
     F8 --> F9{More tasks?}
     F9 -->|yes| F
-    F9 -->|no| G[harness-verification\nRun full test suite]
-    G --> H[harness-finishing\n4 integration options]
+    F9 -->|no| G["harness-verification: run full test suite"]
+    G --> H["harness-finishing: 4 integration options"]
     H --> H1{Choose}
     H1 -->|merge| H2[git merge + worktree cleanup]
     H1 -->|PR| H3[git push + gh pr create]
     H1 -->|keep| H4[Branch preserved]
     H1 -->|discard| H5[Branch deleted]
-    H2 --> I[Mark milestone passed\nActivity logged]
+    H2 --> I["Mark milestone passed + activity logged"]
     H3 --> I
 ```
 
@@ -228,22 +228,22 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A([User: /harness:resume]) --> B[harness-entry]
-    B --> C{claude-progress.json\nexists?}
-    C -->|no| D[Ask: brainstorm / plan / execute?]
+    A(["/harness:resume"]) --> B[harness-entry]
+    B --> C{"claude-progress.json exists?"}
+    C -->|no| D["Ask: brainstorm / plan / execute?"]
     C -->|yes| E[Parse + display milestone status]
-    E --> F[Read activity log\nlast 5 entries for current milestone]
-    F --> G[Surface deferred items\nand re-implementation history]
-    G --> H{Dependency\ncheck passes?}
-    H -->|warning| I[Warn user about\nunmet dependency]
+    E --> F["Read activity log (last 5 entries)"]
+    F --> G[Surface deferred items + re-implementation history]
+    G --> H{Dependency check passes?}
+    H -->|warning| I[Warn about unmet dependency]
     I --> J{Continue anyway?}
     J -->|no| K([Stop])
     J -->|yes| L
-    H -->|ok| L{Plan file\nexists?}
-    L -->|no| M[harness-plan-writing\ncreate milestone plan]
-    L -->|yes, partial| N[harness-execution\nresume from next unchecked task]
-    L -->|yes, all done| O{Mark passed\nor re-evaluate?}
-    O -->|mark passed| P[Progress updated\nnext milestone]
+    H -->|ok| L{Plan file exists?}
+    L -->|no| M["harness-plan-writing: create milestone plan"]
+    L -->|"yes, partial"| N["harness-execution: resume from next unchecked task"]
+    L -->|"yes, all done"| O{Mark passed or re-evaluate?}
+    O -->|mark passed| P[Progress updated to next milestone]
     O -->|re-evaluate| N
     M --> N
 ```
@@ -252,26 +252,26 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    A[Orchestra\nDecision Point] --> B{codex_available?}
-    B -->|no| C[Claude subagent only\nautomatically used]
-    B -->|yes| D{Session\ndefault set?}
-    D -->|yes| E[Use default engine\nno prompt]
-    D -->|no| F[Present choice\nto user]
+    A["Orchestra Decision Point"] --> B{codex_available?}
+    B -->|no| C[Claude subagent used automatically]
+    B -->|yes| D{Session default set?}
+    D -->|yes| E[Use default engine]
+    D -->|no| F[Present choice to user]
 
     F --> G{User chooses}
-    G -->|Claude subagent| H[Dispatch Task tool\nwith prompt template]
+    G -->|Claude subagent| H[Dispatch Task tool with prompt template]
     G -->|Codex| I{Which role?}
-    G -->|Both| J[Dispatch both\nmerge findings]
+    G -->|Both| J[Dispatch both + merge findings]
 
-    I -->|Executor| K[/codex:rescue\n--background]
-    I -->|Spec Review| L[/codex:review\n--background]
-    I -->|Code Quality| M[/codex:adversarial-review\n--background]
+    I -->|Executor| K["/codex:rescue --background"]
+    I -->|Spec Review| L["/codex:review --background"]
+    I -->|Code Quality| M["/codex:adversarial-review --background"]
 
     K --> N[Poll /codex:status]
     L --> N
     M --> N
-    N --> O[/codex:result\nparse output]
-    O --> P[Map to standard\nExecutor/Reviewer format]
+    N --> O["/codex:result: parse output"]
+    O --> P[Map to standard Executor/Reviewer format]
 ```
 
 ---
