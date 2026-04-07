@@ -19,6 +19,15 @@ Executor self-review does not count. Spec Review alone does not count. Only the 
 
 **Separation mandate:** The Executor writes code. The Reviewers review it. These are never the same agent instance.
 
+**Dispatch mandate (hard requirement):**
+
+```
+ORCHESTRA MUST NEVER IMPLEMENT OR REVIEW CODE DIRECTLY.
+EXECUTOR AND REVIEWER WORK MUST ALWAYS BE DISPATCHED TO A SUBAGENT OR CODEX.
+```
+
+If Orchestra edits code directly (instead of dispatching), that task run is invalid and must be re-run with proper dispatch.
+
 ---
 
 ## Setup
@@ -37,19 +46,13 @@ Run `/codex:setup` to check if Codex is installed and authenticated.
 - If Codex is missing but npm is available → inform user: "Codex is not installed. `/codex:setup` can install it. Would you like to install now?"
 - If unavailable → set `codex_available = false`. Skip all Codex Decision Points silently.
 
-### Step 3: Session Engine Preference (Optional)
+### Step 3: Engine Confirmation Policy (Mandatory)
 
-Ask the user if they want to set a default engine for this session, or handle per-task:
+For every task stage (Executor, Spec Review, Code Quality Review), Orchestra MUST explicitly ask the user whether to use Codex or Claude subagent. No silent defaults.
 
-> "For this execution session, would you like to:
->
-> 1. Choose engine per task (default — I'll ask at each Decision Point)
-> 2. Use Claude subagent for all Executor and Reviewer roles
-> 3. Use Codex for Executor, Claude subagent for Reviewer
-> 4. Use Claude subagent for Executor, Codex for Reviewer
-> 5. Use Codex for all roles"
+You may remember the user's previous preference, but still ask for confirmation:
 
-Record preference as `executor_default` and `reviewer_default`. If no preference, ask at each Decision Point.
+> "Last stage used <engine>. Keep this choice for this stage? (yes/no)"
 
 ### Step 4: Create Task List
 
@@ -63,19 +66,19 @@ Repeat this flow for each task in the plan:
 
 ### Step 1: Executor Decision Point
 
-Present to user (skip if session default set):
+Present to user (mandatory, no skip):
 
 > "**Task N: \<task name\>**
 >
 > Choose Executor engine:
 >
-> 1. Claude subagent (default) — dispatches fresh subagent with TDD discipline
+> 1. Claude subagent — dispatches fresh subagent with TDD discipline
 > 2. Codex rescue — `/codex:rescue` with optional `--model`/`--effort`
 >    (best for: previous BLOCKED, need faster/cheaper, late-session context degradation)"
 
 **If Claude subagent chosen:**
 
-Dispatch using `executor-prompt.md` template. Provide:
+Dispatch using Task/Subagent tooling with `executor-prompt.md` template. Provide:
 
 - Full task text (never make Executor read the plan file)
 - Scene-setting context: prior tasks built, architecture decisions, key files
@@ -97,7 +100,7 @@ Format and send using `codex-review-prompt.md` rescue template. Then:
 1. Execute `/codex:rescue <task description> --background [--model X] [--effort Y]`
 2. Poll with `/codex:status` until complete
 3. Retrieve with `/codex:result`
-4. Map Codex output to Executor report format (see `codex-review-prompt.md`)
+4. Map Codex output to Executor report format (see `codex-review-prompt.md`) and continue as dispatched Executor output
 5. Proceed to Spec Review Decision Point
 
 ### Codex Rescue Decision Point (Claude Executor BLOCKED)
@@ -121,18 +124,18 @@ Only shown when `codex_available = true` and Claude subagent Executor reports BL
 
 ### Step 2: Spec Review Decision Point
 
-Present to user after Executor completes (skip if session default set):
+Present to user after Executor completes (mandatory, no skip):
 
 > "**Executor completed Task N.** Choose Spec Reviewer engine:
 >
-> 1. Claude subagent (default) — fresh subagent verifies spec compliance
+> 1. Claude subagent — fresh subagent verifies spec compliance
 > 2. Codex review — `/codex:review` (standard read-only, not directable)
 >    Token cost: moderate
 > 3. Skip Spec Review (not recommended)"
 
 **If Claude subagent chosen:**
 
-Dispatch using `spec-reviewer-prompt.md` template. Provide:
+Dispatch using Task/Subagent tooling and `spec-reviewer-prompt.md` template. Provide:
 
 - Full task requirements text
 - Executor's implementation report
@@ -162,18 +165,18 @@ Handle Spec Reviewer verdict:
 
 ### Step 3: Code Quality Review Decision Point
 
-Present to user after Spec Review passes (skip if session default set):
+Present to user after Spec Review passes (mandatory, no skip):
 
 > "**Spec Review passed. Task N ready for Code Quality Review.** Choose engine:
 >
-> 1. Claude subagent (default) — adversarial attack on security, performance, tests
+> 1. Claude subagent — adversarial attack on security, performance, tests
 > 2. Codex adversarial — `/codex:adversarial-review` (directable, higher token cost)
 >    Good for: security-sensitive code, auth, payments, data access
 > 3. Both — Claude subagent + Codex dual review (maximum quality)"
 
 **If Claude subagent chosen:**
 
-Dispatch using `code-quality-reviewer-prompt.md` template. Provide:
+Dispatch using Task/Subagent tooling and `code-quality-reviewer-prompt.md` template. Provide:
 
 - Full task requirements text
 - Executor's implementation report
@@ -201,6 +204,16 @@ Handle verdict:
 4. If either returns FAIL → combined verdict is FAIL
 5. Merge all findings into consolidated report
 6. Both PASS → proceed to Post-Task
+
+### Dispatch Validation Checklist (Run per task)
+
+Before marking a task complete, Orchestra must verify:
+
+- Executor was dispatched (Claude subagent Task OR Codex rescue), not run inline
+- Spec Reviewer was dispatched (Claude subagent Task OR Codex review), not run inline
+- Code Quality Reviewer was dispatched (Claude subagent Task/Codex/both), not run inline
+
+If any stage was done inline by Orchestra, mark task invalid and re-run that stage via proper dispatch.
 
 **Code Quality Review re-try limit:** If Code Quality Review has failed 3 times, escalate to user:
 
@@ -273,6 +286,7 @@ After Code Quality Review PASS:
 - Skipping activity logging after task completion
 - Marking a milestone passed without all tasks being Code Quality Review approved
 - Using the same agent instance for Executor and any Reviewer role
+- Orchestra directly editing code or directly performing review work
 
 ---
 

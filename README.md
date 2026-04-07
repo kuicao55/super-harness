@@ -28,7 +28,7 @@ A Claude Code skill plugin for structured, long-running software development pro
 | Feature | Description |
 | --- | --- |
 | **Orchestra / Executor / Reviewer** | Every task: Executor (TDD) → Spec Reviewer (compliance) → Code Quality Reviewer (adversarial). Only Code Quality Review PASS completes a task. |
-| **Dual-engine roles** | Each role can use Claude subagent (default) or Codex (`/codex:rescue`, `/codex:review`, `/codex:adversarial-review`). Chosen per-task or per-session. |
+| **Dual-engine roles** | Each role can use Claude subagent or Codex (`/codex:rescue`, `/codex:review`, `/codex:adversarial-review`). Engine choice is explicitly confirmed with the user at every task stage. |
 | **Unified command routing** | All `/harness:` commands route through `harness-entry` for consistent cross-cutting concern initialization. |
 | **Cross-session progress** | `status/claude-progress.json` tracks milestones across sessions. Each session gets its own plan.md. |
 | **Activity logging** | Every completed task logged to `logs/activity-YYYY-MM-DD.jsonl` — engine used, Codex session IDs, review verdicts, deferred items. |
@@ -115,6 +115,8 @@ All commands route through `harness-entry`, which initializes cross-cutting conc
 
 **Iron Law:** Executor writes code. Reviewers review it. These are **never** the same agent instance.
 
+**Dispatch Law:** Orchestra must never write code or review code directly. Executor/Reviewer work must be dispatched to subagent or Codex.
+
 ### Per-Task Execution Flow
 
 ```
@@ -199,7 +201,7 @@ flowchart TD
     D4 --> D5["Plan complete — ready to execute?"]
     D5 --> E["harness-execution (Orchestra)"]
     E --> E1["Check Codex: /codex:setup"]
-    E1 --> E2[Session engine preference]
+    E1 --> E2[Ask user engine choice at each stage]
     E2 --> F{For each task}
     F --> F1[Executor Decision Point]
     F1 --> F2{Executor status?}
@@ -324,7 +326,7 @@ Say yes, or run:
 
 The Orchestra will:
 1. Check Codex availability (`/codex:setup`)
-2. Ask your engine preference (per-task or a session default)
+2. At each stage, explicitly ask whether to use Claude subagent or Codex (no silent default)
 3. For each task, present three Decision Points:
    - **Executor**: Claude subagent or `/codex:rescue`
    - **Spec Review**: Claude subagent or `/codex:review`
