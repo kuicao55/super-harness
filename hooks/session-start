@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# SessionStart hook for claude-codex-harness
+# Injects available commands and session context into the Claude session.
+# Outputs JSON with hookSpecificOutput.additionalContext
+
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+
+# Check for an existing project progress file
+PROGRESS_FILE=""
+if [[ -f "status/claude-progress.json" ]]; then
+  PROGRESS_FILE="status/claude-progress.json"
+elif [[ -f "claude-progress.json" ]]; then
+  PROGRESS_FILE="claude-progress.json"
+fi
+
+# Build the context message
+CONTEXT="claude-codex-harness is active (v2.0.0 — Orchestra / Executor / Reviewer architecture).
+
+Available commands:
+  /harness:brainstorm  — Start structured brainstorming (with optional Visual Companion and scope decomposition)
+  /harness:plan        — Write an implementation plan (scale-aware, milestone tracking)
+  /harness:execute     — Execute a plan using Orchestra / Executor / Reviewer workflow
+  /harness:resume      — Resume a previous session from claude-progress.json
+  /harness:status      — Check current project and milestone status
+
+Architecture:
+  Orchestra coordinates execution. Executor writes code (TDD). Two Reviewers audit independently.
+  Each role can use Claude subagent or Codex engine (/codex:rescue, /codex:review, /codex:adversarial-review).
+
+Available skills:
+  harness:harness-brainstorming   — Structured brainstorming with visual companion
+  harness:harness-plan-writing    — Scale-aware implementation planning
+  harness:harness-execution       — Orchestra-mode task execution
+  harness:harness-entry           — Command routing and resume logic
+  harness:harness-debugging       — 4-phase systematic debugging
+  harness:harness-verification    — Evidence-before-completion verification
+  harness:harness-tdd             — Test-Driven Development discipline
+  harness:harness-worktrees       — Git worktree isolation
+  harness:harness-finishing       — Development branch completion (4 options)
+  harness:harness-parallel-dispatch — Parallel Executor coordination
+  harness:codex-integration       — Codex operations manual (rescue/review/adversarial)
+  harness:activity-logging        — Post-task JSONL activity logging
+  harness:progress-management     — claude-progress.json milestone tracking"
+
+# Append project status if a progress file exists
+if [[ -n "$PROGRESS_FILE" ]]; then
+  PROJECT_NAME=$(python3 -c "import json,sys; d=json.load(open('$PROGRESS_FILE')); print(d.get('project','unknown'))" 2>/dev/null || echo "unknown")
+  MILESTONE_STATUS=$(python3 -c "
+import json,sys
+try:
+    d = json.load(open('$PROGRESS_FILE'))
+    ms = d.get('milestones', [])
+    done = sum(1 for m in ms if m.get('passed'))
+    total = len(ms)
+    next_m = next((m for m in ms if not m.get('passed')), None)
+    print(f'{done}/{total} milestones complete')
+    if next_m:
+        print(f'Next: {next_m[\"id\"]} — {next_m[\"title\"]}')
+except:
+    print('(could not parse progress file)')
+" 2>/dev/null || echo "(could not read progress file)")
+
+  CONTEXT="$CONTEXT
+
+Active project: $PROJECT_NAME
+Milestone progress: $MILESTONE_STATUS
+Resume with: /harness:resume"
+fi
+
+# Output as JSON hookSpecificOutput
+python3 -c "
+import json, sys
+context = sys.argv[1]
+output = {
+    'hookSpecificOutput': {
+        'additionalContext': context
+    }
+}
+print(json.dumps(output))
+" "$CONTEXT" 2>/dev/null || echo "{\"hookSpecificOutput\": {\"additionalContext\": \"claude-codex-harness v2.0.0 active. Commands: /harness:brainstorm, /harness:plan, /harness:execute, /harness:resume, /harness:status\"}}"

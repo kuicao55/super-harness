@@ -1,7 +1,7 @@
 {
   "name": "claude-codex-harness",
-  "description": "Structured development workflow with cross-session progress tracking, activity logging, and Generator vs. Evaluator architecture with optional Codex integration",
-  "version": "1.0.0",
+  "description": "Structured development workflow with Orchestra / Executor / Reviewer architecture, cross-session progress tracking, activity logging, Visual Companion, and dual-engine (Claude subagent or Codex) execution and review",
+  "version": "2.0.0",
   "author": {
     "name": "kuicao"
   },
@@ -11,6 +11,12 @@
     "tdd",
     "progress-tracking",
     "codex",
-    "generator-evaluator"
-  ]
+    "orchestra",
+    "executor",
+    "reviewer",
+    "visual-companion",
+    "brainstorming",
+    "parallel-agents"
+  ],
+  "hooks": "hooks/hooks.json"
 }

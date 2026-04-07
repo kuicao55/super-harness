@@ -12,7 +12,7 @@ Record every completed task to a structured JSONL log. This prevents "memory los
 ## The Iron Law
 
 ```
-LOG EVERY TASK AFTER EVALUATOR PASS. NO EXCEPTIONS.
+LOG EVERY TASK AFTER CODE QUALITY REVIEW PASS. NO EXCEPTIONS.
 ```
 
 Skipping a log entry means a future session cannot reconstruct what happened. The activity log is the harness's long-term memory.
@@ -21,11 +21,12 @@ Skipping a log entry means a future session cannot reconstruct what happened. Th
 
 ## When to Invoke This Skill
 
-Invoke immediately after every task that receives an Evaluator PASS verdict. Also invoke for:
+Invoke immediately after every task that receives a Code Quality Review PASS verdict. Also invoke for:
 
 - Brainstorming session completion (phase: `brainstorming`)
 - Plan-writing session completion (phase: `planning`)
 - A task marked as BLOCKED (to record the blockage)
+- Code Quality Review escalation after 3 failures (to record the escalation decision)
 
 ---
 
@@ -36,6 +37,21 @@ Invoke immediately after every task that receives an Evaluator PASS verdict. Als
 **Format:** JSONL — one JSON object per line, newline-delimited. Append only.
 
 **Directory:** Ensure `logs/` exists: `mkdir -p logs`
+
+---
+
+## Session ID Generation
+
+Before writing the first entry of a session, generate the `session_id`:
+
+1. Check if `logs/activity-YYYY-MM-DD.jsonl` exists for today
+2. If the file EXISTS:
+   - Read all existing lines and extract the `session_id` field from each
+   - Find the highest `NNN` suffix (e.g. `session-2026-04-07-003` → NNN = 3)
+   - New session_id = `session-YYYY-MM-DD-{NNN+1:03d}` (e.g. `session-2026-04-07-004`)
+3. If the file does NOT exist:
+   - New session_id = `session-YYYY-MM-DD-001`
+4. Reuse the same `session_id` for all entries within a single Claude session
 
 ---
 
@@ -52,55 +68,64 @@ Each entry is a single JSON object on one line:
   "task_title": "Implement task assignment endpoint",
   "phase": "execution",
   "action": "Implemented POST /tasks/:id/assign with auth check and validation",
-  "generator_status": "DONE",
-  "evaluator_status": "PASS",
-  "codex_used": false,
-  "codex_mode": null,
+  "executor_status": "DONE",
+  "spec_review_status": "SPEC_COMPLIANT",
+  "code_quality_status": "PASS",
+  "executor_engine": "claude-subagent",
+  "reviewer_engine": "claude-subagent",
+  "codex_session_id": null,
+  "codex_model": null,
+  "codex_effort": null,
   "files_changed": ["src/routes/tasks.py", "tests/routes/test_tasks.py"],
-  "notes": "Evaluator flagged missing rate limiting — added as Minor, deferred to later milestone"
+  "notes": "Code Quality Reviewer flagged missing rate limiting — added as Minor, deferred to later milestone"
 }
 ```
 
 **Field definitions:**
 
-| Field              | Type           | Description                                                                              |
-| ------------------ | -------------- | ---------------------------------------------------------------------------------------- |
-| `timestamp`        | ISO 8601       | When the log entry was written                                                           |
-| `session_id`       | string         | `"session-YYYY-MM-DD-NNN"` — increment NNN if multiple sessions per day                  |
-| `milestone_id`     | string or null | The milestone ID from `claude-progress.json`, or `null` for small projects               |
-| `task_id`          | string         | `"task-N"` matching the task number in the plan                                          |
-| `task_title`       | string         | Short description of the task                                                            |
-| `phase`            | enum           | `"brainstorming"` \| `"planning"` \| `"execution"`                                       |
-| `action`           | string         | 1-2 sentences describing what was actually done                                          |
-| `generator_status` | enum           | `"DONE"` \| `"DONE_WITH_CONCERNS"` \| `"BLOCKED"` \| `"SKIPPED"`                         |
-| `evaluator_status` | enum           | `"PASS"` \| `"FAIL_THEN_PASS"` \| `"SKIPPED"` \| `"BLOCKED"`                             |
-| `codex_used`       | boolean        | Whether Codex was invoked for this task                                                  |
-| `codex_mode`       | string or null | `"review"` \| `"adversarial-review"` \| `"rescue"` \| `null`                             |
-| `files_changed`    | array          | List of file paths modified by this task                                                 |
-| `notes`            | string or null | Important context for next session — Evaluator concerns, deferred items, blocking issues |
+| Field                 | Type           | Description                                                                                                          |
+| --------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `timestamp`           | ISO 8601       | When the log entry was written                                                                                       |
+| `session_id`          | string         | `"session-YYYY-MM-DD-NNN"` — see Session ID Generation above                                                         |
+| `milestone_id`        | string or null | The milestone ID from `claude-progress.json`, or `null` for small projects                                           |
+| `task_id`             | string         | `"task-N"` matching the task number in the plan                                                                      |
+| `task_title`          | string         | Short description of the task                                                                                        |
+| `phase`               | enum           | `"brainstorming"` \| `"planning"` \| `"execution"`                                                                   |
+| `action`              | string         | 1-2 sentences describing what was actually done                                                                      |
+| `executor_status`     | enum           | `"DONE"` \| `"DONE_WITH_CONCERNS"` \| `"BLOCKED"` \| `"SKIPPED"`                                                     |
+| `spec_review_status`  | enum           | `"SPEC_COMPLIANT"` \| `"SPEC_ISSUES_THEN_COMPLIANT"` \| `"SKIPPED"`                                                  |
+| `code_quality_status` | enum           | `"PASS"` \| `"FAIL_THEN_PASS"` \| `"SKIPPED"` \| `"BLOCKED"`                                                         |
+| `executor_engine`     | enum           | `"claude-subagent"` \| `"codex-rescue"` — which engine ran the Executor                                              |
+| `reviewer_engine`     | enum           | `"claude-subagent"` \| `"codex-review"` \| `"codex-adversarial-review"` \| `"both"` — which engine ran the Reviewers |
+| `codex_session_id`    | string or null | Session ID from `/codex:result` — allows `codex resume <id>` later                                                   |
+| `codex_model`         | string or null | Codex model used (e.g. `"gpt-5.4-mini"`, `"spark"`)                                                                  |
+| `codex_effort`        | string or null | Codex effort level used (e.g. `"medium"`, `"high"`, `"xhigh"`)                                                       |
+| `files_changed`       | array          | List of file paths modified by this task                                                                             |
+| `notes`               | string or null | Important context for next session — Reviewer concerns, deferred items, blocking issues                              |
 
-**`evaluator_status` values explained:**
+**`code_quality_status` values explained:**
 
-- `PASS` — passed on first Evaluator review
-- `FAIL_THEN_PASS` — failed at least once, then passed after Generator re-implementation
-- `SKIPPED` — phase was `brainstorming` or `planning` (no Evaluator in these phases)
-- `BLOCKED` — task could not be completed (use with `generator_status: "BLOCKED"`)
+- `PASS` — passed on first Code Quality Review
+- `FAIL_THEN_PASS` — failed at least once, then passed after Executor re-implementation
+- `SKIPPED` — phase was `brainstorming` or `planning`
+- `BLOCKED` — task could not be completed
 
 ---
 
 ## How to Write a Log Entry
 
 1. Gather the information from the current execution context
-2. Construct the JSON object (single line, no pretty printing)
-3. Append to `logs/activity-YYYY-MM-DD.jsonl`:
+2. Generate or reuse the `session_id` (see Session ID Generation)
+3. Construct the JSON object (single line, no pretty printing)
+4. Append to `logs/activity-YYYY-MM-DD.jsonl`:
 
 ```bash
-echo '{"timestamp":"...","session_id":"...","milestone_id":"...","task_id":"...","task_title":"...","phase":"execution","action":"...","generator_status":"DONE","evaluator_status":"PASS","codex_used":false,"codex_mode":null,"files_changed":["..."],"notes":null}' >> logs/activity-2026-04-02.jsonl
+echo '{"timestamp":"...","session_id":"...","milestone_id":"...","task_id":"...","task_title":"...","phase":"execution","action":"...","executor_status":"DONE","spec_review_status":"SPEC_COMPLIANT","code_quality_status":"PASS","executor_engine":"claude-subagent","reviewer_engine":"claude-subagent","codex_session_id":null,"codex_model":null,"codex_effort":null,"files_changed":["..."],"notes":null}' >> logs/activity-2026-04-07.jsonl
 ```
 
 Or write the JSON object using a file write tool — append to the file, do not overwrite.
 
-4. Commit: `git add logs/ && git commit -m "harness: log task-N completion"`
+5. Commit: `git add logs/ && git commit -m "harness: log task-N completion"`
 
 ---
 
@@ -108,17 +133,17 @@ Or write the JSON object using a file write tool — append to the file, do not 
 
 When `/harness:resume` is invoked and a plan file is found but partially executed, the activity log supplements the plan's checkboxes with richer context. The `harness-entry` skill reads the log to:
 
-- Understand which tasks had Evaluator re-iterations (and why)
+- Understand which tasks had re-iterations (and why)
 - Surface any `notes` about deferred items or concerns
 - Confirm the session context before continuing
 
-When displaying the resume summary, the entry skill may show recent log entries:
+When displaying the resume summary, the entry skill shows recent log entries:
 
 ```
-Recent activity (from logs/activity-2026-04-02.jsonl):
-  14:32 — task-3 PASS (DONE → PASS on first review)
-  14:55 — task-4 PASS (DONE → FAIL_THEN_PASS — Generator missed null check on line 42)
-  15:20 — task-5 BLOCKED — Codex rescue invoked, waiting for result
+Recent activity (from logs/activity-2026-04-07.jsonl):
+  14:32 — task-3 PASS (DONE → SPEC_COMPLIANT → PASS) [engine: claude-subagent / claude-subagent]
+  14:55 — task-4 PASS (DONE → SPEC_COMPLIANT → FAIL_THEN_PASS — Reviewer found null check missing at line 42) [engine: claude-subagent / codex-adversarial-review]
+  15:20 — task-5 BLOCKED — Codex rescue invoked, session: session-abc123
 ```
 
 ---
@@ -136,10 +161,14 @@ For non-execution phases, use simplified entries:
   "task_title": "Project brainstorming session",
   "phase": "brainstorming",
   "action": "Completed brainstorming for task-manager project. Spec saved to docs/harness/specs/2026-04-01-task-manager-design.md",
-  "generator_status": "SKIPPED",
-  "evaluator_status": "SKIPPED",
-  "codex_used": false,
-  "codex_mode": null,
+  "executor_status": "SKIPPED",
+  "spec_review_status": "SKIPPED",
+  "code_quality_status": "SKIPPED",
+  "executor_engine": null,
+  "reviewer_engine": null,
+  "codex_session_id": null,
+  "codex_model": null,
+  "codex_effort": null,
   "files_changed": ["docs/harness/specs/2026-04-01-task-manager-design.md"],
   "notes": "User prefers REST over GraphQL. Authentication deferred to milestone-1."
 }

@@ -1,239 +1,561 @@
-# claude-codex-harness
+# claude-codex-harness v2.0.0
 
-A Claude Code skill plugin for structured, long-running software development projects. Built on the philosophy of [superpowers](https://github.com/obra/superpowers) but adds cross-session progress tracking, mandatory activity logging, and a Generator vs. Evaluator (GvE) adversarial execution architecture with optional Codex integration.
+A Claude Code skill plugin for structured, long-running software development projects. Built on an **Orchestra / Executor / Reviewer** architecture that enforces strict separation between code writers and code reviewers, with optional Codex as an alternative engine for any role.
 
-**Mac / Claude Code only.** No cross-platform support.
+**Mac / Claude Code only.**
+
+---
+
+## Table of Contents
+
+- [What This Plugin Does](#what-this-plugin-does)
+- [Installation](#installation)
+- [Commands](#commands)
+- [Architecture](#architecture)
+- [Workflow Diagrams](#workflow-diagrams)
+- [How to Use](#how-to-use)
+- [Skills Reference](#skills-reference)
+- [Codex Integration](#codex-integration)
+- [File Structure](#file-structure)
+- [Relationship to superpowers](#relationship-to-superpowers)
 
 ---
 
 ## What This Plugin Does
 
-| Feature                     | Description                                                                                                                                            |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Command-driven workflow** | `/harness:brainstorm`, `/harness:plan`, `/harness:resume`, `/harness:execute`, `/harness:status` — you control when each phase starts                  |
-| **Cross-session progress**  | `status/claude-progress.json` tracks milestones across sessions for large projects. Each session creates its own plan.md.                              |
-| **Activity logging**        | Every completed task is logged to `logs/activity-YYYY-MM-DD.jsonl`. Resume a session days later with full context.                                     |
-| **Generator vs. Evaluator** | Every task goes through Generator (implement with TDD) → optional Codex review → Evaluator (adversarial attack). Only Evaluator PASS completes a task. |
-| **Codex integration**       | Optional `/codex:review`, `/codex:adversarial-review`, and `/codex:rescue` prompts at each task's decision points. You decide per-task.                |
+| Feature | Description |
+| --- | --- |
+| **Orchestra / Executor / Reviewer** | Every task: Executor (TDD) → Spec Reviewer (compliance) → Code Quality Reviewer (adversarial). Only Code Quality Review PASS completes a task. |
+| **Dual-engine roles** | Each role can use Claude subagent (default) or Codex (`/codex:rescue`, `/codex:review`, `/codex:adversarial-review`). Chosen per-task or per-session. |
+| **Unified command routing** | All `/harness:` commands route through `harness-entry` for consistent cross-cutting concern initialization. |
+| **Cross-session progress** | `status/claude-progress.json` tracks milestones across sessions. Each session gets its own plan.md. |
+| **Activity logging** | Every completed task logged to `logs/activity-YYYY-MM-DD.jsonl` — engine used, Codex session IDs, review verdicts, deferred items. |
+| **Visual Companion** | Optional browser UI during brainstorming for mockups, architecture diagrams, and design option cards. |
+| **6 new skills** | Systematic debugging, evidence-based verification, TDD, Git worktrees, branch finishing (4 options), parallel dispatch. |
 
 ---
 
 ## Installation
 
-### 1. Install this plugin
+### 1. Install via marketplace
 
-This plugin is distributed via [kuicao55/claude-plugins](https://github.com/kuicao55/claude-plugins), a central marketplace for all of kuicao55's Claude Code plugins.
-
-| | |
-|---|---|
-| **Plugin name** | `claude-codex-harness` |
-| **Marketplace** | `kuicao-plugins` |
-
-**Step 1 — Add the marketplace** (one-time, inside a Claude Code session):
+Inside a Claude Code session:
 
 ```
 /plugin marketplace add kuicao55/claude-plugins
-```
-
-**Step 2 — Install this plugin:**
-
-```
 /plugin install claude-codex-harness@kuicao-plugins
-```
-
-> Tip: run `/plugin` to open the UI and browse all available plugins in the **Discover** tab.
-
-**Step 3 — Reload:**
-
-```
 /reload-plugins
 ```
 
-To manage the plugin later:
-
-```
-/plugin disable   claude-codex-harness@kuicao-plugins
-/plugin enable    claude-codex-harness@kuicao-plugins
-/plugin uninstall claude-codex-harness@kuicao-plugins
-```
-
-**Alternative: per-session load without installing**
-
-Clone the repo, then launch Claude Code with `--plugin-dir`:
+### 2. Install via plugin-dir (no marketplace)
 
 ```bash
 git clone https://github.com/kuicao55/claude-codex-harness.git
 claude --plugin-dir ./claude-codex-harness
 ```
 
-### 2. (Optional) Install Codex integration
+### 3. (Optional) Enable Codex engine
 
-To enable `/codex` commands:
-
-```bash
-# Install the official Claude Code plugin (run in claude code)
+```
 /plugin marketplace add openai/codex-plugin-cc
 ```
 
-Requires a ChatGPT subscription. After installation, restart Claude Code — `/codex` commands are auto-discovered.
+Requires a ChatGPT subscription. After installation, restart Claude Code. If not installed, all Codex Decision Points are silently skipped.
 
 ---
 
 ## Commands
 
-| Command               | Phase     | Description                                  |
-| --------------------- | --------- | -------------------------------------------- |
-| `/harness:brainstorm` | Phase 2   | Start with idea exploration → design spec    |
-| `/harness:plan`       | Phase 3   | Write implementation plan (scale-aware)      |
-| `/harness:resume`     | Entry     | Resume a previous session from progress file |
-| `/harness:execute`    | Phase 4   | Execute a plan with GvE architecture         |
-| `/harness:status`     | Read-only | Display current milestone progress           |
+| Command | Phase | Description |
+| --- | --- | --- |
+| `/harness:brainstorm` | Design | Structured brainstorming with scope decomposition and optional Visual Companion |
+| `/harness:plan` | Planning | Scale-aware implementation planning with milestone tracking |
+| `/harness:execute` | Execution | Orchestra-mode plan execution with dual-engine Decision Points |
+| `/harness:resume` | Resume | Resume previous session (reads progress + activity log) |
+| `/harness:status` | Read-only | Display current milestone and task progress |
+
+All commands route through `harness-entry`, which initializes cross-cutting concerns (`progress-management`, `activity-logging`) for every command path.
 
 ---
 
-## Workflow
+## Architecture
 
-### New small project (single session)
+### The Three Roles
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         ORCHESTRA                                   │
+│                    (harness-execution)                              │
+│                                                                     │
+│  Coordinates the pipeline. Loads the plan. Presents Decision       │
+│  Points. Records activity logs. Manages retries and escalation.    │
+│  Does NOT write code. Does NOT review code.                        │
+└──────────────────────────┬──────────────────────────────────────────┘
+                           │ dispatches
+           ┌───────────────┼───────────────┐
+           ▼               ▼               ▼
+    ┌─────────────┐ ┌─────────────┐ ┌──────────────────┐
+    │  EXECUTOR   │ │   SPEC      │ │  CODE QUALITY    │
+    │             │ │  REVIEWER   │ │  REVIEWER        │
+    │  Writes     │ │  (Stage 1)  │ │  (Stage 2)       │
+    │  code with  │ │             │ │                  │
+    │  TDD        │ │  Checks     │ │  Adversarial     │
+    │             │ │  spec       │ │  attack:         │
+    │  Engine:    │ │  compliance │ │  security,       │
+    │  Claude or  │ │             │ │  perf, tests     │
+    │  Codex      │ │  Engine:    │ │                  │
+    │  rescue     │ │  Claude or  │ │  Engine:         │
+    │             │ │  Codex      │ │  Claude or       │
+    │             │ │  review     │ │  Codex           │
+    └─────────────┘ └─────────────┘ │  adversarial     │
+                                    └──────────────────┘
+```
+
+**Iron Law:** Executor writes code. Reviewers review it. These are **never** the same agent instance.
+
+### Per-Task Execution Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  TASK N                                                                 │
+│                                                                         │
+│  Step 1: Executor Decision Point                                        │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  Choose engine:                                                  │   │
+│  │  1. Claude subagent  →  executor-prompt.md                       │   │
+│  │  2. Codex rescue     →  /codex:rescue [--model X] [--effort Y]   │   │
+│  │                                                                  │   │
+│  │  Status: DONE / DONE_WITH_CONCERNS / BLOCKED / NEEDS_CONTEXT     │   │
+│  │                                                                  │   │
+│  │  If BLOCKED + Codex available:                                   │   │
+│  │    → Codex Rescue Decision Point (offer rescue)                  │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                          │                                              │
+│                          ▼                                              │
+│  Step 2: Spec Review Decision Point                                     │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  Choose engine:                                                  │   │
+│  │  1. Claude subagent  →  spec-reviewer-prompt.md                  │   │
+│  │  2. Codex review     →  /codex:review [--base <ref>]             │   │
+│  │  3. Skip (not recommended)                                       │   │
+│  │                                                                  │   │
+│  │  SPEC_COMPLIANT  →  proceed to Step 3                            │   │
+│  │  SPEC_ISSUES     →  back to Step 1 (fix loop)                    │   │
+│  │  3 failures      →  escalate to user                             │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                          │                                              │
+│                          ▼                                              │
+│  Step 3: Code Quality Review Decision Point                             │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  Choose engine:                                                  │   │
+│  │  1. Claude subagent  →  code-quality-reviewer-prompt.md          │   │
+│  │  2. Codex adversarial→  /codex:adversarial-review [focus text]   │   │
+│  │  3. Both             →  dual review (max quality)                │   │
+│  │                                                                  │   │
+│  │  PASS  →  task complete  ✓                                       │   │
+│  │  FAIL  →  back to Step 1 (fix loop)                              │   │
+│  │  3 failures  →  escalate to user                                 │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                          │                                              │
+│                          ▼                                              │
+│  Step 4: Post-Task                                                      │
+│    → activity-logging (record engine, Codex session ID)                 │
+│    → update plan checkbox [x]                                           │
+│    → check milestone completion                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Workflow Diagrams
+
+### Full Pipeline (New Small Project)
+
+```mermaid
+flowchart TD
+    A([User: /harness:brainstorm]) --> B[harness-entry\nroutes command]
+    B --> C[harness-brainstorming]
+    C --> C1{Visual topic?}
+    C1 -->|yes| C2[Offer Visual Companion\nbrowser UI]
+    C1 -->|no| C3
+    C2 --> C3{Multiple\nsubsystems?}
+    C3 -->|yes| C4[Scope Decomposition\ndecompose → build order]
+    C3 -->|no| C5
+    C4 --> C5[Explore idea\nask clarifying questions]
+    C5 --> C6[Propose 2-3 approaches]
+    C6 --> C7[Write design spec\ndocs/harness/specs/]
+    C7 --> C8[Spec self-review]
+    C8 --> C9{User approves?}
+    C9 -->|revise| C7
+    C9 -->|approve| C10[Spec approved\nContinue to planning?]
+    C10 --> D[harness-plan-writing]
+    D --> D1{Scale?}
+    D1 -->|small| D2[Single plan.md]
+    D1 -->|large| D3[claude-progress.json\n+ Milestone 1 plan]
+    D2 --> D4[Plan self-review]
+    D3 --> D4
+    D4 --> D5[Plan complete\nReady to execute?]
+    D5 --> E[harness-execution\nOrchestra mode]
+    E --> E1[Check Codex availability\n/codex:setup]
+    E1 --> E2[Session engine preference]
+    E2 --> F{For each task}
+    F --> F1[Executor Decision Point\nClaude or Codex]
+    F1 --> F2{Executor\nstatus?}
+    F2 -->|BLOCKED| F3[Codex Rescue\nDecision Point]
+    F3 --> F4[/codex:rescue\n--background]
+    F4 --> F2b
+    F2 -->|DONE| F2b[Spec Review Decision Point\nClaude or Codex]
+    F2b --> F5{Spec\nverdict?}
+    F5 -->|SPEC_ISSUES| F1
+    F5 -->|SPEC_COMPLIANT| F6[Code Quality Review\nDecision Point]
+    F6 --> F7{Quality\nverdict?}
+    F7 -->|FAIL| F1
+    F7 -->|PASS| F8[Log + update plan ✓]
+    F8 --> F9{More tasks?}
+    F9 -->|yes| F
+    F9 -->|no| G[harness-verification\nRun full test suite]
+    G --> H[harness-finishing\n4 integration options]
+    H --> H1{Choose}
+    H1 -->|merge| H2[git merge + worktree cleanup]
+    H1 -->|PR| H3[git push + gh pr create]
+    H1 -->|keep| H4[Branch preserved]
+    H1 -->|discard| H5[Branch deleted]
+    H2 --> I[Mark milestone passed\nActivity logged]
+    H3 --> I
+```
+
+### Resume Flow (Multi-Session)
+
+```mermaid
+flowchart TD
+    A([User: /harness:resume]) --> B[harness-entry]
+    B --> C{claude-progress.json\nexists?}
+    C -->|no| D[Ask: brainstorm / plan / execute?]
+    C -->|yes| E[Parse + display milestone status]
+    E --> F[Read activity log\nlast 5 entries for current milestone]
+    F --> G[Surface deferred items\nand re-implementation history]
+    G --> H{Dependency\ncheck passes?}
+    H -->|warning| I[Warn user about\nunmet dependency]
+    I --> J{Continue anyway?}
+    J -->|no| K([Stop])
+    J -->|yes| L
+    H -->|ok| L{Plan file\nexists?}
+    L -->|no| M[harness-plan-writing\ncreate milestone plan]
+    L -->|yes, partial| N[harness-execution\nresume from next unchecked task]
+    L -->|yes, all done| O{Mark passed\nor re-evaluate?}
+    O -->|mark passed| P[Progress updated\nnext milestone]
+    O -->|re-evaluate| N
+    M --> N
+```
+
+### Codex Engine Selection
+
+```mermaid
+flowchart LR
+    A[Orchestra\nDecision Point] --> B{codex_available?}
+    B -->|no| C[Claude subagent only\nautomatically used]
+    B -->|yes| D{Session\ndefault set?}
+    D -->|yes| E[Use default engine\nno prompt]
+    D -->|no| F[Present choice\nto user]
+
+    F --> G{User chooses}
+    G -->|Claude subagent| H[Dispatch Task tool\nwith prompt template]
+    G -->|Codex| I{Which role?}
+    G -->|Both| J[Dispatch both\nmerge findings]
+
+    I -->|Executor| K[/codex:rescue\n--background]
+    I -->|Spec Review| L[/codex:review\n--background]
+    I -->|Code Quality| M[/codex:adversarial-review\n--background]
+
+    K --> N[Poll /codex:status]
+    L --> N
+    M --> N
+    N --> O[/codex:result\nparse output]
+    O --> P[Map to standard\nExecutor/Reviewer format]
+```
+
+---
+
+## How to Use
+
+### Starting a New Project
+
+**Step 1 — Brainstorm your idea:**
 
 ```
 /harness:brainstorm
-  → explore idea, propose approaches, write spec
-  → (auto-transitions to) /harness:plan
-  → scale assessment: "small project"
-  → generate single plan.md
-  → (auto-transitions to) /harness:execute
-  → GvE execution: Generator → Codex? → Evaluator per task
 ```
 
-### New large project (multi-session)
+The assistant will:
+- Explore your project context (existing files, git history)
+- Offer the Visual Companion browser UI if the topic involves UI/architecture diagrams
+- Check if your request spans multiple subsystems (scope decomposition)
+- Ask clarifying questions one at a time
+- Propose 2-3 implementation approaches
+- Write a design spec to `docs/harness/specs/YYYY-MM-DD-<topic>-design.md`
+- Ask for your approval before moving on
 
+**Step 2 — Write the plan:**
+
+After approving the spec, the assistant will prompt:
+> "Spec approved. I suggest we now move to implementation planning. Continue? (yes/no)"
+
+Say yes, or run:
 ```
-Session 1:
-  /harness:brainstorm
-  → spec written to docs/harness/specs/
-  → /harness:plan
-  → scale assessment: "large project"
-  → status/claude-progress.json created with N milestones
-  → plan for Milestone 1 generated
-  → /harness:execute
-  → GvE execution of Milestone 1's plan
-  → Milestone 1 marked passed
-
-Session 2:
-  /harness:resume
-  → reads claude-progress.json
-  → finds Milestone 2 (passed: false)
-  → generates plan for Milestone 2 (fresh session plan.md)
-  → /harness:execute
-  → GvE execution of Milestone 2's plan
-  → Milestone 2 marked passed
-
-... repeat for each milestone
+/harness:plan
 ```
 
-### Resuming after interruption
+The plan-writing skill will:
+- Assess project scale (small = single session, large = multi-milestone)
+- For large projects: create `status/claude-progress.json` with all milestones
+- Write a detailed plan with TDD steps (failing test → minimal code → verify pass) — no placeholders
+
+**Step 3 — Execute:**
+
+After plan is approved:
+> "Plan complete. Ready to execute? (yes/no)"
+
+Say yes, or run:
+```
+/harness:execute
+```
+
+The Orchestra will:
+1. Check Codex availability (`/codex:setup`)
+2. Ask your engine preference (per-task or a session default)
+3. For each task, present three Decision Points:
+   - **Executor**: Claude subagent or `/codex:rescue`
+   - **Spec Review**: Claude subagent or `/codex:review`
+   - **Code Quality Review**: Claude subagent, `/codex:adversarial-review`, or both
+
+### Resuming a Previous Session
 
 ```
 /harness:resume
-  → reads claude-progress.json
-  → finds current milestone
-  → checks plan file: exists? tasks done?
-  → Case A: no plan → generate one
-  → Case B: plan exists, partial → resume from next unchecked task
-  → Case C: all tasks done but not passed → confirm or re-evaluate
 ```
+
+The assistant will:
+- Read `status/claude-progress.json` and show milestone progress
+- Read the activity log and highlight deferred items from the last session
+- Find the first incomplete milestone and either generate its plan or resume execution
+
+### Checking Project Status
+
+```
+/harness:status
+```
+
+Displays current milestone, task completion counts, and recent activity.
 
 ---
 
-## File Structure (in your project repo)
+### Choosing Engines
 
-The harness creates these files in your project repo (not the plugin):
+At each Decision Point, you'll see something like:
 
 ```
-your-project/
-  status/
-    claude-progress.json        # Milestone tracker (large projects only)
-  docs/
-    harness/
-      specs/
-        YYYY-MM-DD-<topic>-design.md    # Design specs from brainstorming
-      plans/
-        YYYY-MM-DD-milestone-N.md       # Session plan for each milestone
-  logs/
-    activity-YYYY-MM-DD.jsonl   # Daily activity log
+Task 3: Implement user authentication endpoint. Choose Executor engine:
+1. Claude subagent (default) — dispatches fresh subagent with TDD discipline
+2. Codex rescue — /codex:rescue with optional --model/--effort
+   (best for: previous BLOCKED, need faster/cheaper, late-session context degradation)
+
+Enter choice (1-2, default: 1):
 ```
 
-All of these should be committed to git.
+**When to use Codex:**
+- Executor was previously BLOCKED on this task
+- You want a faster/cheaper model for mechanical tasks (`--model spark --effort medium`)
+- The Claude context has degraded across a long session
+- Security-sensitive code that benefits from adversarial Codex review
+- You want dual Code Quality Review for maximum confidence
+
+**Session-wide default:** At session start you can set a default engine for all roles, so Orchestra won't ask per-task.
 
 ---
 
-## Generator vs. Evaluator Architecture
+### Visual Companion (during brainstorming)
 
-The core of `harness-execution`. For each task in a plan:
+When your topic involves UI design or architecture diagrams, the assistant will offer:
 
-```
-1. Generator subagent
-   → Implements with TDD (failing test first, minimal code, verify pass)
-   → Reports: DONE / DONE_WITH_CONCERNS / BLOCKED / NEEDS_CONTEXT
+> "This involves visual design. Would you like to see options in the browser? (yes/no)"
 
-2. [If Generator BLOCKED and Codex available]
-   → Ask user: use /codex:rescue?
+If yes, a local server starts. Open the URL in your browser to see interactive mockups and option cards. Click to select — your choices are recorded and read by the assistant on the next turn.
 
-3. [If Codex available]
-   → Ask user: /codex:review, /codex:adversarial-review, or skip?
-   → Codex findings passed to Evaluator as supplementary context
-
-4. Evaluator subagent
-   → Adversarial review: assume code is broken, prove otherwise
-   → Checks: boundary cases, security, performance, spec compliance, test quality
-   → Verdict: PASS or FAIL (with specific file:line issues)
-
-5. If FAIL → back to Generator with specific feedback
-   If PASS → log activity, update progress, next task
+```bash
+# The server starts automatically. To stop manually:
+skills/harness-brainstorming/scripts/stop-server.sh $SESSION_DIR
 ```
 
-Only the Evaluator's PASS closes a task. No exceptions.
+Mockup files persist in `.harness/brainstorm/` (add `.harness/` to your `.gitignore`).
 
 ---
 
-## Codex Integration
+### Parallel Execution
 
-Codex is always optional and always user-driven:
+When multiple tasks are independent (no shared files, no sequential dependency), Orchestra can dispatch them in parallel:
 
-| Mode                        | When shown             | What it does                                      |
-| --------------------------- | ---------------------- | ------------------------------------------------- |
-| `/codex:review`             | After Generator DONE   | Read-only second opinion on architecture/patterns |
-| `/codex:adversarial-review` | After Generator DONE   | Aggressive hunt for bugs, security, performance   |
-| `/codex:rescue`             | When Generator BLOCKED | Hand off stuck task to Codex for execution        |
+> "Tasks 3 and 4 appear to be independent. Dispatch in parallel? (yes/no)"
 
-The harness never auto-invokes Codex. It asks you at each task's decision point. If Codex is not installed, the prompts are silently skipped.
+Each parallel Executor gets its own git worktree. After all complete review stages, Orchestra checks for merge conflicts before integrating.
 
 ---
 
-## Relationship to superpowers
+### Finishing a Branch
 
-This plugin does **not** modify superpowers. Both can be installed simultaneously.
+After all tasks pass Code Quality Review, `harness-finishing` presents:
 
-| superpowers                    | claude-codex-harness                  |
-| ------------------------------ | ------------------------------------- |
-| Hook-triggered (session start) | Command-triggered (explicit)          |
-| Single-session focus           | Multi-session milestone tracking      |
-| Manual activity tracking       | Automatic JSONL activity log          |
-| Single reviewer                | GvE: Generator + Evaluator separation |
-| No Codex integration           | Interactive Codex decision points     |
+```
+All N tasks complete and verified. How would you like to integrate?
 
-The brainstorming and plan-writing phases are philosophically identical to superpowers (YAGNI, TDD, no placeholders, atomic steps, exact file paths). The execution phase is where this harness diverges significantly.
+1. Merge locally  — merge branch into main/master right now
+2. Push and PR    — push branch and open a pull request
+3. Keep open      — leave the branch/worktree for later
+4. Discard        — abandon all work on this branch
+```
+
+Worktrees are cleaned up automatically after merge or PR.
 
 ---
 
 ## Skills Reference
 
-| Skill                           | Purpose                                    |
-| ------------------------------- | ------------------------------------------ |
-| `harness:harness-entry`         | Command routing, resume logic              |
-| `harness:harness-brainstorming` | Phase 2: design spec creation              |
-| `harness:harness-plan-writing`  | Phase 3: scale assessment, plan generation |
-| `harness:harness-execution`     | Phase 4: GvE execution loop                |
-| `harness:progress-management`   | CRUD for claude-progress.json              |
-| `harness:activity-logging`      | Post-task JSONL logging                    |
-| `harness:codex-integration`     | Codex setup and usage reference            |
+| Skill | Description |
+| --- | --- |
+| `harness:harness-entry` | Command routing and resume logic. Reads activity log on resume, checks milestone dependencies. |
+| `harness:harness-brainstorming` | Structured brainstorming: scope decomposition, Visual Companion, design spec writing. |
+| `harness:harness-plan-writing` | Scale-aware planning. Small: single plan. Large: `claude-progress.json` + per-milestone plan. |
+| `harness:harness-execution` | Orchestra: 3 Decision Points per task, engine selection, 3-strike escalation, activity logging. |
+| `harness:harness-debugging` | 4-phase root cause investigation (identify → pattern analysis → hypothesis → fix). |
+| `harness:harness-verification` | Evidence-before-completion gate: IDENTIFY → RUN → READ → VERIFY → CLAIM. |
+| `harness:harness-tdd` | TDD reference: Red-Green-Refactor, writing tests that actually test, avoiding hollow mocks. |
+| `harness:harness-worktrees` | Git worktree setup before implementation, baseline test verification, cleanup. |
+| `harness:harness-finishing` | Branch completion: verify tests → 4 integration options → worktree cleanup → milestone marked. |
+| `harness:harness-parallel-dispatch` | Independence check, parallel Executor dispatch, conflict resolution before merge. |
+| `harness:codex-integration` | Full Codex operations manual: commands, polling, output-to-verdict mapping, token cost table. |
+| `harness:activity-logging` | Post-task JSONL logging with executor engine, reviewer engine, Codex session IDs, notes. |
+| `harness:progress-management` | CRUD for `status/claude-progress.json` milestone tracking. |
+
+---
+
+## Codex Integration
+
+Each role has a corresponding Codex command:
+
+| Role | Codex Command | Notes |
+| --- | --- | --- |
+| Executor | `/codex:rescue <task> [--model spark\|gpt-5.4-mini] [--effort medium\|high\|xhigh]` | `--background` recommended |
+| Spec Reviewer | `/codex:review [--base <branch>]` | Read-only, not directable |
+| Code Quality Reviewer | `/codex:adversarial-review [focus text] [--base <branch>]` | Directable with focus text |
+
+**Task management during async Codex jobs:**
+
+```bash
+/codex:status [task-id]    # poll for completion
+/codex:result [task-id]    # get final output + session-id
+/codex:cancel [task-id]    # cancel stuck job
+codex resume <session-id>  # continue in Codex app
+```
+
+**Token cost guide:**
+
+| Command | Cost | Best for |
+| --- | --- | --- |
+| `/codex:rescue --model spark --effort medium` | Lowest | Mechanical 1-2 file tasks |
+| `/codex:review` | Moderate | Standard spec compliance |
+| `/codex:rescue` (default) | Moderate | General implementation |
+| `/codex:adversarial-review` | Higher | Security/performance-sensitive code |
+| `/codex:rescue --model gpt-5.4-mini --effort xhigh` | Highest | Complex or deeply stuck tasks |
+
+---
+
+## File Structure
+
+### In this plugin repository
+
+```
+claude-codex-harness/
+  agents/
+    executor.md                    # Executor role definition
+    spec-reviewer.md               # Spec Reviewer role definition
+    code-quality-reviewer.md       # Code Quality Reviewer role definition
+  commands/
+    brainstorm.md                  # /harness:brainstorm → routes to harness-entry
+    plan.md                        # /harness:plan → routes to harness-entry
+    execute.md                     # /harness:execute → routes to harness-entry
+    resume.md                      # /harness:resume → routes to harness-entry
+    status.md                      # /harness:status (read-only, no routing needed)
+  hooks/
+    hooks.json                     # SessionStart hook registration
+    run-hook.sh                    # Cross-platform hook launcher
+    session-start                  # Injects commands/context at session start
+  scripts/
+    bump-version.sh                # Version bump utility
+  skills/
+    harness-entry/SKILL.md         # Command routing + resume logic
+    harness-brainstorming/
+      SKILL.md                     # Brainstorming with scope decomposition
+      visual-companion.md          # Visual Companion guide
+      scripts/                     # WebSocket server + helper scripts
+    harness-plan-writing/SKILL.md  # Scale-aware planning
+    harness-execution/
+      SKILL.md                     # Orchestra execution loop
+      executor-prompt.md           # Executor subagent prompt template
+      spec-reviewer-prompt.md      # Spec Reviewer subagent prompt template
+      code-quality-reviewer-prompt.md  # Code Quality Reviewer prompt template
+      codex-review-prompt.md       # Codex call templates for all roles
+    harness-debugging/
+      SKILL.md                     # 4-phase debugging methodology
+      root-cause-tracing.md        # Error pattern reference
+    harness-verification/SKILL.md  # Evidence-before-completion gate
+    harness-tdd/SKILL.md           # TDD discipline reference
+    harness-worktrees/SKILL.md     # Git worktree management
+    harness-finishing/SKILL.md     # Branch completion (4 options)
+    harness-parallel-dispatch/SKILL.md  # Parallel Executor coordination
+    activity-logging/SKILL.md      # JSONL activity logging
+    codex-integration/SKILL.md     # Codex operations manual
+    progress-management/SKILL.md   # claude-progress.json CRUD
+  .claude-plugin/plugin.json       # Plugin manifest (v2.0.0)
+  .version-bump.json               # Files to update on version bump
+  LICENSE                          # MIT
+```
+
+### In your project repository (created by the harness)
+
+```
+your-project/
+  status/
+    claude-progress.json            # Milestone tracker (large projects only)
+  docs/
+    harness/
+      specs/
+        YYYY-MM-DD-<topic>-design.md    # Design specs from brainstorming
+      plans/
+        YYYY-MM-DD-milestone-N.md       # Per-session implementation plans
+  logs/
+    activity-YYYY-MM-DD.jsonl       # Daily activity log
+  .harness/                         # Visual Companion session files
+                                    # ← add to .gitignore
+```
+
+---
+
+## Relationship to superpowers
+
+Both plugins can be installed simultaneously without conflict.
+
+| Feature | [superpowers](https://github.com/obra/superpowers) | claude-codex-harness v2.0.0 |
+| --- | --- | --- |
+| Trigger | SessionStart hook | Explicit `/harness:` commands |
+| Session scope | Single-session | Multi-session milestone tracking |
+| Activity tracking | Manual | Automatic JSONL log (engine, Codex IDs, deferred items) |
+| Agent architecture | Generator vs. Evaluator | Orchestra / Executor / Spec Reviewer / Code Quality Reviewer |
+| Code review | Single adversarial reviewer | Two-stage: spec compliance → adversarial quality |
+| Codex roles | Generator rescue | Executor + both Reviewer stages (any role) |
+| Visual Companion | ✅ | ✅ (adapted for harness) |
+| Scope decomposition | ✅ | ✅ (adapted for harness) |
+| Branch finishing | 4 options + worktree cleanup | ✅ (adapted for harness) |
+| Git worktrees | ✅ | ✅ (adapted for harness) |
+| Parallel agents | ✅ | ✅ (adapted for harness) |
+| TDD / debugging / verification | ✅ | ✅ (adapted for harness) |
+
+The brainstorming and plan-writing phases are philosophically identical to superpowers (YAGNI, TDD, no placeholders, atomic steps, exact file paths). The execution phase is where this harness diverges significantly with the three-role architecture and dual-engine flexibility.

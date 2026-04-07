@@ -109,7 +109,7 @@ Every plan — small or large — MUST start with this header:
 ```markdown
 # <Milestone/Feature Name> Implementation Plan
 
-> **Harness note:** This plan is executed via `harness:harness-execution` using the GvE (Generator vs. Evaluator) architecture. Each task goes through Generator → optional Codex review → Evaluator before being marked complete.
+> **Harness note:** This plan is executed via `harness:harness-execution` using the Orchestra / Executor / Reviewer architecture. Each task goes through Executor (TDD implementation) → Spec Reviewer (compliance check) → Code Quality Reviewer (adversarial review). Only Code Quality Review PASS closes a task.
 
 **Goal:** [One sentence describing what this builds]
 
@@ -208,6 +208,8 @@ After saving the plan and self-review:
 
 > "Plan complete and saved to `docs/harness/plans/<filename>.md`.
 >
-> Ready to execute? I'll use the GvE architecture: each task goes through Generator (implements with TDD) → you optionally involve Codex for review → Evaluator (adversarial verification). Only Evaluator-approved tasks count as complete.
+> Spec approved. I suggest we move to execution now. Continue? (yes/no)
 >
-> Type `/harness:execute` or say 'go ahead' to begin."
+> If yes, I'll use the Orchestra / Executor / Reviewer architecture: each task goes through Executor (implements with TDD) → Spec Reviewer (verifies requirements) → Code Quality Reviewer (adversarial verification). Only Code Quality Review PASS closes a task."
+
+Wait for user confirmation before invoking `harness:harness-execution`.

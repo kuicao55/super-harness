@@ -1,102 +1,237 @@
-# Codex Review Request Template
+# Codex Call Templates
 
-Use this template to format a request for Codex review after a Generator completes a task.
-
-Covers both `/codex:review` (standard) and `/codex:adversarial-review` (aggressive) modes.
-
----
-
-## For `/codex:review` (Standard Read-Only Review)
-
-Use when the user wants a second perspective on architecture, naming, and patterns.
-
-**Context to provide to Codex:**
-
-```
-Task just completed: Task N — <task name>
-
-What was built:
-<Generator's implementation report summary>
-
-Files changed:
-<list of files>
-
-Please review this implementation for:
-- Architecture quality: Does it follow clean separation of concerns?
-- Naming clarity: Are names accurate and descriptive?
-- Pattern consistency: Does it match the existing codebase style?
-- Missing abstractions: Is anything obviously over-complicated or under-abstracted?
-- Any obvious issues you notice
-
-This is a read-only review — do not modify any files.
-Return a structured list of observations.
-```
+Use this file when Orchestra chooses Codex as the engine for Executor or Reviewer roles.
+All Codex commands are provided by the `codex-plugin-cc` plugin (`/codex:*`).
 
 ---
 
-## For `/codex:adversarial-review` (Aggressive Adversarial Audit)
+## Executor Engine: `/codex:rescue`
 
-Use when the user wants Codex to actively hunt for vulnerabilities, edge case failures, and performance issues.
+Use when Orchestra selects Codex as the Executor for a task (instead of Claude subagent).
+Also use when a Claude subagent Executor reports BLOCKED and the user chooses Codex rescue.
 
-**Note:** This mode is token-intensive. The user has already confirmed they want this level of scrutiny.
-
-**Context to provide to Codex:**
+### Task Delegation Template
 
 ```
-Task just completed: Task N — <task name>
+/codex:rescue <task description> --background
 
-What was built:
-<Generator's implementation report summary>
+Task to implement:
+[FULL TEXT of the task from the plan]
 
-Files changed:
-<list of files>
+Context:
+[Scene-setting: what has been built so far, architecture decisions, key files]
 
-Task requirements:
-<full task requirements text>
+Working directory: [DIRECTORY]
 
-Please perform an adversarial review focused on:
+Requirements:
+- Implement with TDD (failing test first, minimal code, verify pass)
+- Follow YAGNI — build only what the task specifies
+- Match the conventions of the existing codebase
+- Report: what was built, files changed, test results
+```
 
-1. ATTACK VECTORS — actively try to find ways to break this code:
-   - Injection vulnerabilities (SQL, command, template)
-   - Authentication/authorization bypass
-   - Sensitive data exposure
-   - Input validation failures
+### Model / Effort Guidance
 
-2. EDGE CASES — what inputs would cause failures?
-   - Null/empty/undefined inputs
-   - Boundary values (0, -1, MAX_INT)
-   - Concurrent access
-   - Malformed data
+| Scenario                                       | Recommended Command                                                     |
+| ---------------------------------------------- | ----------------------------------------------------------------------- |
+| Simple/mechanical task (1-2 files, clear spec) | `/codex:rescue <task> --model spark --effort medium --background`       |
+| Standard implementation task                   | `/codex:rescue <task> --background`                                     |
+| Complex/integration task                       | `/codex:rescue <task> --model gpt-5.4-mini --effort xhigh --background` |
+| Continuing a stuck task                        | `/codex:rescue <task> --resume --background`                            |
+| Fresh attempt (ignore history)                 | `/codex:rescue <task> --fresh --background`                             |
 
-3. SECURITY COMPLIANCE:
-   - Any security best practices violated?
-   - Any OWASP Top 10 concerns?
+**Note:** `spark` maps to `gpt-5.3-codex-spark` (fastest, lowest cost). Omitting `--model` lets Codex choose its own defaults.
 
-4. PERFORMANCE RISKS:
-   - O(n²) or worse complexity?
-   - Database/network calls in loops?
-   - Memory leaks or unbounded growth?
+### Blocked Rescue Template
 
-5. SPEC VIOLATIONS:
-   - Does the implementation match ALL requirements?
-   - Anything built that wasn't requested?
+When Claude subagent Executor is BLOCKED, provide full context to Codex:
 
-Return findings categorized by severity: Critical | Important | Minor.
-Be specific with file:line references.
+```
+/codex:rescue --background
+
+Task: [task name and full description]
+
+What Claude attempted:
+[Executor's blocked report — what was tried and why it failed]
+
+Specific blocker:
+[Precise description of what Claude couldn't resolve]
+
+Context:
+[Architecture, key files, relevant interfaces]
+
+Working directory: [DIRECTORY]
 ```
 
 ---
 
-## Collecting Codex Findings
+## Reviewer Engine (Stage 1): `/codex:review`
 
-After Codex responds, extract the findings and format them as:
+Use when Orchestra selects Codex as the Spec Reviewer (instead of Claude subagent).
+This is a read-only standard review — cannot be directed with focus text.
+
+### Standard Spec Review
 
 ```
---- Codex Review Findings (mode: review | adversarial-review) ---
-[Paste Codex's response here]
------------------------------------------------------------------
+/codex:review --background
 ```
 
-These findings are then passed to the Evaluator subagent as supplementary context (see `evaluator-prompt.md`).
+For branch comparison (recommended when working in a worktree):
 
-The Evaluator incorporates Codex findings into its own independent review — Codex findings alone do not determine PASS/FAIL. The Evaluator's verdict is final.
+```
+/codex:review --base main --background
+```
+
+### Interpreting Codex Review Output → Spec Reviewer Report
+
+Map Codex output to the standard Spec Review verdict:
+
+```
+Codex review output → SPEC_COMPLIANT when:
+  - No missing features mentioned
+  - No "should have" or "expected to" language about missing items
+  - No unrequested features flagged as out of scope
+
+Codex review output → SPEC_ISSUES when:
+  - Codex mentions missing requirements ("this doesn't handle X from the spec")
+  - Codex flags extra features ("this adds Y which wasn't requested")
+  - Codex notes the implementation doesn't match the described intent
+```
+
+---
+
+## Reviewer Engine (Stage 2): `/codex:adversarial-review`
+
+Use when Orchestra selects Codex as the Code Quality Reviewer (instead of or alongside Claude subagent).
+This review IS steerable — provide focus text for security-sensitive areas.
+
+### Standard Adversarial Review
+
+```
+/codex:adversarial-review --background
+```
+
+For branch comparison:
+
+```
+/codex:adversarial-review --base main --background
+```
+
+### Targeted Adversarial Review (with focus text)
+
+For security-sensitive code:
+
+```
+/codex:adversarial-review --background look for authentication bypass, injection vulnerabilities, and sensitive data exposure
+```
+
+For performance-sensitive code:
+
+```
+/codex:adversarial-review --background challenge the algorithmic complexity and look for database queries in loops
+```
+
+For concurrent systems:
+
+```
+/codex:adversarial-review --background look for race conditions, shared state issues, and question the chosen synchronization approach
+```
+
+### Interpreting Codex Adversarial Review Output → Code Quality Reviewer Report
+
+```
+Codex adversarial-review output → PASS when:
+  - No Critical or Important issues found
+  - Only Minor observations (do not block PASS)
+
+Codex adversarial-review output → FAIL when:
+  - Any Critical issue found (security vulnerability, broken functionality)
+  - Any Important issue found (significant performance, test quality, integration problem)
+
+Severity mapping:
+  Critical → block PASS immediately
+  Important → block PASS (fix before task complete)
+  Minor → note for later, does not block PASS
+```
+
+---
+
+## Dual Review: Claude subagent + Codex (Maximum Quality)
+
+When Orchestra selects "both" for Code Quality Review:
+
+1. Dispatch Claude subagent with `code-quality-reviewer-prompt.md` (runs immediately)
+2. Simultaneously run `/codex:adversarial-review --background [focus text]`
+3. Collect Claude subagent verdict
+4. Poll with `/codex:status` → get result with `/codex:result`
+5. Merge findings:
+   - If either returns FAIL → combined verdict is FAIL
+   - Include all issues from both parties in the consolidated report
+   - If both return PASS → task complete
+
+---
+
+## Task Management Commands
+
+Orchestra uses these to manage background Codex jobs:
+
+```bash
+# Check on a running job
+/codex:status
+/codex:status <task-id>
+
+# Get the final output when done
+/codex:result
+/codex:result <task-id>
+
+# Cancel a running job (if timed out or no longer needed)
+/codex:cancel
+/codex:cancel <task-id>
+
+# Continue a Codex session in the Codex app
+# (Use the session-id from /codex:result output)
+codex resume <session-id>
+```
+
+### Polling Pattern for Background Tasks
+
+```
+1. Dispatch: /codex:rescue|review|adversarial-review [args] --background
+2. Note the task-id from the response
+3. Poll every 15-30 seconds: /codex:status <task-id>
+4. When status shows complete: /codex:result <task-id>
+5. Parse output and continue workflow
+6. If task seems stuck after several minutes: /codex:cancel <task-id>, then retry or fallback to Claude subagent
+```
+
+---
+
+## Token Cost Reference
+
+Display to user at Decision Points:
+
+| Command                                             | Cost           | When to Use                          |
+| --------------------------------------------------- | -------------- | ------------------------------------ |
+| `/codex:review`                                     | Moderate       | Standard spec compliance check       |
+| `/codex:adversarial-review`                         | Higher         | Security/performance-sensitive code  |
+| `/codex:rescue` (default)                           | Varies by task | General implementation delegation    |
+| `/codex:rescue --model spark`                       | Lowest         | Simple/mechanical tasks              |
+| `/codex:rescue --model gpt-5.4-mini --effort xhigh` | High           | Complex tasks needing deep reasoning |
+
+---
+
+## Activity Log Fields for Codex Usage
+
+When a task uses Codex, record in the activity log:
+
+```json
+{
+  "executor_engine": "codex-rescue",
+  "reviewer_engine": "codex-adversarial-review",
+  "codex_session_id": "<session-id from /codex:result>",
+  "codex_model": "gpt-5.4-mini",
+  "codex_effort": "high"
+}
+```
+
+The `codex_session_id` allows resuming the Codex session later with `codex resume <session-id>`.

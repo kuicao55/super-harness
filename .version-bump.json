@@ -1,0 +1,16 @@
+{
+  "files": [
+    {
+      "path": ".claude-plugin/plugin.json",
+      "pattern": "\"version\": \"${VERSION}\""
+    },
+    {
+      "path": "hooks/session-start",
+      "pattern": "v${VERSION}"
+    },
+    {
+      "path": "README.md",
+      "pattern": "v${VERSION}"
+    }
+  ]
+}
