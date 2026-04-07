@@ -37,7 +37,7 @@ Skip `claude-progress.json` entirely.
 
 1. Write a single `plan.md` following the full superpowers-style format (see Task Structure below)
 2. Save to `docs/harness/plans/YYYY-MM-DD-<feature-name>.md`
-3. Offer execution: invoke `claude-codex-harness:harness-execution` when ready
+3. Offer execution: invoke `harness:harness-execution` when ready
 
 ---
 
@@ -109,7 +109,7 @@ Every plan — small or large — MUST start with this header:
 ```markdown
 # <Milestone/Feature Name> Implementation Plan
 
-> **Harness note:** This plan is executed via `claude-codex-harness:harness-execution` using the Orchestra / Executor / Reviewer architecture. Each task goes through Executor (TDD implementation) → Spec Reviewer (compliance check) → Code Quality Reviewer (adversarial review). Only Code Quality Review PASS closes a task.
+> **Harness note:** This plan is executed via `harness:harness-execution` using the Orchestra / Executor / Reviewer architecture. Each task goes through Executor (TDD implementation) → Spec Reviewer (compliance check) → Code Quality Reviewer (adversarial review). Only Code Quality Review PASS closes a task.
 
 **Goal:** [One sentence describing what this builds]
 
@@ -212,4 +212,4 @@ After saving the plan and self-review:
 >
 > If yes, I'll use the Orchestra / Executor / Reviewer architecture: each task goes through Executor (implements with TDD) → Spec Reviewer (verifies requirements) → Code Quality Reviewer (adversarial verification). Only Code Quality Review PASS closes a task."
 
-Wait for user confirmation before invoking `claude-codex-harness:harness-execution`.
+Wait for user confirmation before invoking `harness:harness-execution`.

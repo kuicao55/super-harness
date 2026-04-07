@@ -26,7 +26,7 @@ This means:
 
 ## When to Invoke This Skill
 
-- Before marking a task complete in `claude-codex-harness:harness-execution`
+- Before marking a task complete in `harness:harness-execution`
 - Before claiming a milestone is done
 - Before marking a project as complete
 - After applying any fix (to confirm the fix works)
@@ -95,7 +95,7 @@ Verify each item from Gate 1:
 □ Task-specific test: identified test is passing and actually tests the right behavior
 ```
 
-If any item fails, STOP. Do NOT claim completion. Invoke `claude-codex-harness:harness-debugging` if needed.
+If any item fails, STOP. Do NOT claim completion. Invoke `harness:harness-debugging` if needed.
 
 ### Gate 5: CLAIM — State what was verified
 
@@ -145,10 +145,10 @@ Run everything every time.
 
 ## Integration
 
-This skill is invoked by `claude-codex-harness:harness-execution` before:
+This skill is invoked by `harness:harness-execution` before:
 
 - Marking a milestone as passed
 - Claiming all tasks are complete
-- Invoking `claude-codex-harness:harness-finishing`
+- Invoking `harness:harness-finishing`
 
 After verification passes, return the evidence to the calling context.

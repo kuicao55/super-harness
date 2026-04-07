@@ -11,7 +11,7 @@ Guide the completion of implementation work: verify everything passes, decide ho
 
 ## When to Invoke This Skill
 
-Invoked automatically by `claude-codex-harness:harness-execution` after all tasks complete and Code Quality Review has passed for each task.
+Invoked automatically by `harness:harness-execution` after all tasks complete and Code Quality Review has passed for each task.
 
 Also invoke directly when the user wants to wrap up a development branch.
 
@@ -28,7 +28,7 @@ cd <worktree-path>
 
 **If tests fail:**
 
-Stop. Do NOT proceed to integration options. Invoke `claude-codex-harness:harness-debugging` to investigate.
+Stop. Do NOT proceed to integration options. Invoke `harness:harness-debugging` to investigate.
 
 > "⚠️ Tests are failing before merge. Cannot proceed with integration until tests pass."
 
@@ -181,12 +181,12 @@ git branch
 
 After successful merge or PR creation:
 
-1. Invoke `claude-codex-harness:progress-management` to mark the current milestone as passed:
+1. Invoke `harness:progress-management` to mark the current milestone as passed:
    - Set `passed: true`
    - Set `session_date` to today
    - Update `updated_at` timestamp
 
-2. Invoke `claude-codex-harness:activity-logging` to record the branch completion event.
+2. Invoke `harness:activity-logging` to record the branch completion event.
 
 3. Display completion summary:
 

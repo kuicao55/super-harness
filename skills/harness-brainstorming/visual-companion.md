@@ -1,6 +1,6 @@
 # Visual Companion Guide
 
-Browser-based visual brainstorming companion for `claude-codex-harness:harness-brainstorming`. Shows mockups, diagrams, and design options in an interactive browser UI.
+Browser-based visual brainstorming companion for `harness:harness-brainstorming`. Shows mockups, diagrams, and design options in an interactive browser UI.
 
 ## When to Use
 

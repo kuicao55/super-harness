@@ -27,7 +27,7 @@ You MUST create a task for each of these items and complete them in order:
 7. **Spec self-review** — scan for placeholders, contradictions, ambiguity, scope issues (fix inline)
 8. **User reviews written spec** — ask user to review before proceeding
 9. **Scale assessment** — briefly assess: single session or multi-session project? (feeds into plan-writing)
-10. **Transition to plan-writing** — invoke `claude-codex-harness:harness-plan-writing`
+10. **Transition to plan-writing** — invoke `harness:harness-plan-writing`
 
 ## The Process
 
@@ -166,11 +166,11 @@ Before invoking plan-writing, briefly note:
 - Whether this feels like a single-session or multi-session project
 - Any obvious milestone boundaries if multi-session
 
-This assessment is provided as context to `claude-codex-harness:harness-plan-writing`.
+This assessment is provided as context to `harness:harness-plan-writing`.
 
 > "Spec approved. I suggest we now move to implementation planning. Continue? (yes/no)"
 
-Wait for user confirmation, then **invoke `claude-codex-harness:harness-plan-writing`.**
+Wait for user confirmation, then **invoke `harness:harness-plan-writing`.**
 
 ## Key Principles
 

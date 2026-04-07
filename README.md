@@ -423,19 +423,19 @@ Worktrees are cleaned up automatically after merge or PR.
 
 | Skill | Description |
 | --- | --- |
-| `claude-codex-harness:harness-entry` | Command routing and resume logic. Reads activity log on resume, checks milestone dependencies. |
-| `claude-codex-harness:harness-brainstorming` | Structured brainstorming: scope decomposition, Visual Companion, design spec writing. |
-| `claude-codex-harness:harness-plan-writing` | Scale-aware planning. Small: single plan. Large: `claude-progress.json` + per-milestone plan. |
-| `claude-codex-harness:harness-execution` | Orchestra: 3 Decision Points per task, engine selection, 3-strike escalation, activity logging. |
-| `claude-codex-harness:harness-debugging` | 4-phase root cause investigation (identify → pattern analysis → hypothesis → fix). |
-| `claude-codex-harness:harness-verification` | Evidence-before-completion gate: IDENTIFY → RUN → READ → VERIFY → CLAIM. |
-| `claude-codex-harness:harness-tdd` | TDD reference: Red-Green-Refactor, writing tests that actually test, avoiding hollow mocks. |
-| `claude-codex-harness:harness-worktrees` | Git worktree setup before implementation, baseline test verification, cleanup. |
-| `claude-codex-harness:harness-finishing` | Branch completion: verify tests → 4 integration options → worktree cleanup → milestone marked. |
-| `claude-codex-harness:harness-parallel-dispatch` | Independence check, parallel Executor dispatch, conflict resolution before merge. |
-| `claude-codex-harness:codex-integration` | Full Codex operations manual: commands, polling, output-to-verdict mapping, token cost table. |
-| `claude-codex-harness:activity-logging` | Post-task JSONL logging with executor engine, reviewer engine, Codex session IDs, notes. |
-| `claude-codex-harness:progress-management` | CRUD for `status/claude-progress.json` milestone tracking. |
+| `harness:harness-entry` | Command routing and resume logic. Reads activity log on resume, checks milestone dependencies. |
+| `harness:harness-brainstorming` | Structured brainstorming: scope decomposition, Visual Companion, design spec writing. |
+| `harness:harness-plan-writing` | Scale-aware planning. Small: single plan. Large: `claude-progress.json` + per-milestone plan. |
+| `harness:harness-execution` | Orchestra: 3 Decision Points per task, engine selection, 3-strike escalation, activity logging. |
+| `harness:harness-debugging` | 4-phase root cause investigation (identify → pattern analysis → hypothesis → fix). |
+| `harness:harness-verification` | Evidence-before-completion gate: IDENTIFY → RUN → READ → VERIFY → CLAIM. |
+| `harness:harness-tdd` | TDD reference: Red-Green-Refactor, writing tests that actually test, avoiding hollow mocks. |
+| `harness:harness-worktrees` | Git worktree setup before implementation, baseline test verification, cleanup. |
+| `harness:harness-finishing` | Branch completion: verify tests → 4 integration options → worktree cleanup → milestone marked. |
+| `harness:harness-parallel-dispatch` | Independence check, parallel Executor dispatch, conflict resolution before merge. |
+| `harness:codex-integration` | Full Codex operations manual: commands, polling, output-to-verdict mapping, token cost table. |
+| `harness:activity-logging` | Post-task JSONL logging with executor engine, reviewer engine, Codex session IDs, notes. |
+| `harness:progress-management` | CRUD for `status/claude-progress.json` milestone tracking. |
 
 ---
 

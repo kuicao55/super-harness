@@ -28,19 +28,19 @@ Architecture:
   Each role can use Claude subagent or Codex engine (/codex:rescue, /codex:review, /codex:adversarial-review).
 
 Available skills:
-  claude-codex-harness:harness-brainstorming   — Structured brainstorming with visual companion
-  claude-codex-harness:harness-plan-writing    — Scale-aware implementation planning
-  claude-codex-harness:harness-execution       — Orchestra-mode task execution
-  claude-codex-harness:harness-entry           — Command routing and resume logic
-  claude-codex-harness:harness-debugging       — 4-phase systematic debugging
-  claude-codex-harness:harness-verification    — Evidence-before-completion verification
-  claude-codex-harness:harness-tdd             — Test-Driven Development discipline
-  claude-codex-harness:harness-worktrees       — Git worktree isolation
-  claude-codex-harness:harness-finishing       — Development branch completion (4 options)
-  claude-codex-harness:harness-parallel-dispatch — Parallel Executor coordination
-  claude-codex-harness:codex-integration       — Codex operations manual (rescue/review/adversarial)
-  claude-codex-harness:activity-logging        — Post-task JSONL activity logging
-  claude-codex-harness:progress-management     — claude-progress.json milestone tracking"
+  harness:harness-brainstorming   — Structured brainstorming with visual companion
+  harness:harness-plan-writing    — Scale-aware implementation planning
+  harness:harness-execution       — Orchestra-mode task execution
+  harness:harness-entry           — Command routing and resume logic
+  harness:harness-debugging       — 4-phase systematic debugging
+  harness:harness-verification    — Evidence-before-completion verification
+  harness:harness-tdd             — Test-Driven Development discipline
+  harness:harness-worktrees       — Git worktree isolation
+  harness:harness-finishing       — Development branch completion (4 options)
+  harness:harness-parallel-dispatch — Parallel Executor coordination
+  harness:codex-integration       — Codex operations manual (rescue/review/adversarial)
+  harness:activity-logging        — Post-task JSONL activity logging
+  harness:progress-management     — claude-progress.json milestone tracking"
 
 # Append project status if a progress file exists
 if [[ -n "$PROGRESS_FILE" ]]; then

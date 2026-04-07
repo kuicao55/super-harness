@@ -216,14 +216,14 @@ Update activity log with failure count and final decision regardless of outcome.
 
 After Code Quality Review PASS:
 
-1. **Invoke `claude-codex-harness:activity-logging`** — record task completion with:
+1. **Invoke `harness:activity-logging`** — record task completion with:
    - `executor_engine`: `claude-subagent` or `codex-rescue`
    - `reviewer_engine`: `claude-subagent`, `codex-review`/`codex-adversarial-review`, or `both`
    - `codex_session_id`: session-id from `/codex:result` (if Codex was used)
 2. **Update plan file** — mark task checkbox: `- [ ]` → `- [x]`
 3. **If large project** — check if ALL tasks in current milestone are `- [x]`:
    - If yes: prompt user "All tasks in this milestone are complete and Code Quality Review approved. Mark milestone **\<title\>** as passed? (yes/no)"
-   - If confirmed: invoke `claude-codex-harness:progress-management` to set `passed: true`
+   - If confirmed: invoke `harness:progress-management` to set `passed: true`
 4. Announce: "Task N complete. Moving to Task N+1."
 5. Mark next task as `in_progress` in TodoWrite
 
@@ -235,10 +235,10 @@ After Code Quality Review PASS:
 
    > "Running full test suite to verify all tasks integrate correctly..."
 
-   If tests fail: stop and debug using `claude-codex-harness:harness-debugging` before claiming completion.
-   Apply `claude-codex-harness:harness-verification` before marking work done.
+   If tests fail: stop and debug using `harness:harness-debugging` before claiming completion.
+   Apply `harness:harness-verification` before marking work done.
 
-2. **Invoke `claude-codex-harness:harness-finishing`** — guides branch completion:
+2. **Invoke `harness:harness-finishing`** — guides branch completion:
    - Verifies tests pass
    - Presents 4 options: merge locally / push + PR / keep / discard
    - Handles worktree cleanup
@@ -266,7 +266,7 @@ After Code Quality Review PASS:
 
 ## Red Flags — STOP
 
-- Starting implementation on `main`/`master` without explicit user consent (use `claude-codex-harness:harness-worktrees`)
+- Starting implementation on `main`/`master` without explicit user consent (use `harness:harness-worktrees`)
 - Proceeding to next task while Code Quality Review has open issues
 - Trusting Executor self-review instead of running both Reviewers
 - Letting Executor write production code before a failing test exists
@@ -280,10 +280,10 @@ After Code Quality Review PASS:
 
 **Skills used by this skill:**
 
-- `claude-codex-harness:activity-logging` — mandatory after every task
-- `claude-codex-harness:progress-management` — to mark milestones passed
-- `claude-codex-harness:harness-debugging` — when full test suite fails after all tasks complete
-- `claude-codex-harness:harness-verification` — before marking work complete
-- `claude-codex-harness:harness-finishing` — after all tasks complete, to handle branch and worktree
+- `harness:activity-logging` — mandatory after every task
+- `harness:progress-management` — to mark milestones passed
+- `harness:harness-debugging` — when full test suite fails after all tasks complete
+- `harness:harness-verification` — before marking work complete
+- `harness:harness-finishing` — after all tasks complete, to handle branch and worktree
 - Subagent templates: `executor-prompt.md`, `spec-reviewer-prompt.md`, `code-quality-reviewer-prompt.md`
 - Codex templates: `codex-review-prompt.md`
