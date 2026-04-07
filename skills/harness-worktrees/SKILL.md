@@ -21,8 +21,8 @@ All implementation work should happen in a dedicated branch. A git worktree prov
 
 ## When to Invoke This Skill
 
-- At the start of `harness:harness-execution` (Orchestra will call this)
-- When `harness:harness-brainstorming` or `harness:harness-plan-writing` ends and the user is about to begin execution
+- At the start of `claude-codex-harness:harness-execution` (Orchestra will call this)
+- When `claude-codex-harness:harness-brainstorming` or `claude-codex-harness:harness-plan-writing` ends and the user is about to begin execution
 - When the user asks to work in isolation
 - When resuming an existing worktree for continued work
 
@@ -153,13 +153,13 @@ After worktree is set up and baseline verified:
 >
 > All implementation work will happen in this worktree."
 
-Provide the worktree path to `harness:harness-execution` as the working directory for all Executor subagents.
+Provide the worktree path to `claude-codex-harness:harness-execution` as the working directory for all Executor subagents.
 
 ---
 
 ## Worktree Cleanup (After Finishing)
 
-This is handled by `harness:harness-finishing`. But if manual cleanup is needed:
+This is handled by `claude-codex-harness:harness-finishing`. But if manual cleanup is needed:
 
 ```bash
 # Remove the worktree (must be done from main checkout)
@@ -176,7 +176,7 @@ git worktree prune
 
 ## Multiple Worktrees (Parallel Work)
 
-When `harness:harness-parallel-dispatch` is used for parallel Executor instances:
+When `claude-codex-harness:harness-parallel-dispatch` is used for parallel Executor instances:
 
 - Create one worktree per parallel branch
 - Use naming: `harness/<milestone>-<task-group>-N`

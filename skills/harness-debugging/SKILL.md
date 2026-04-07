@@ -27,7 +27,7 @@ If you jump straight to a fix:
 
 ## When to Invoke This Skill
 
-- A test fails unexpectedly during `harness:harness-execution`
+- A test fails unexpectedly during `claude-codex-harness:harness-execution`
 - An Executor reports BLOCKED with a confusing error
 - The full test suite fails after all tasks complete
 - Code Quality Review flags an error you can't immediately explain
@@ -225,7 +225,7 @@ If 3+ attempts at different hypotheses all fail:
 
 ## Integration
 
-This skill is invoked by `harness:harness-execution` when:
+This skill is invoked by `claude-codex-harness:harness-execution` when:
 
 - Full test suite fails after all tasks complete
 - An Executor reports BLOCKED with an error

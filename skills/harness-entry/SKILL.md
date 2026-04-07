@@ -13,24 +13,24 @@ This skill handles the entry point for all `/harness:` commands. It establishes 
 
 Before routing, establish these two skills as active cross-cutting concerns for this session:
 
-- `harness:progress-management` — will be invoked whenever `claude-progress.json` must be read or written
-- `harness:activity-logging` — will be invoked after every completed task
+- `claude-codex-harness:progress-management` — will be invoked whenever `claude-progress.json` must be read or written
+- `claude-codex-harness:activity-logging` — will be invoked after every completed task
 
 ## Routing Logic
 
 ### If invoked via `/harness:brainstorm`
 
-Route directly to `harness:harness-brainstorming`. No state check needed.
+Route directly to `claude-codex-harness:harness-brainstorming`. No state check needed.
 
 ### If invoked via `/harness:plan`
 
-Route directly to `harness:harness-plan-writing`. No state check needed. The plan-writing skill handles scale assessment internally.
+Route directly to `claude-codex-harness:harness-plan-writing`. No state check needed. The plan-writing skill handles scale assessment internally.
 
 ### If invoked via `/harness:execute`
 
 Check if a plan file exists. Ask the user: "Which plan file should I execute? (Provide the path, or press Enter if there's only one plan in `docs/harness/plans/`)"
 
-Then route to `harness:harness-execution` with the specified plan.
+Then route to `claude-codex-harness:harness-execution` with the specified plan.
 
 ### If invoked via `/harness:status`
 
@@ -118,7 +118,7 @@ Find the first milestone where `passed: false`. Check its `plan_file` field:
 
 > "No plan exists for this milestone yet. I'll run the plan-writing skill to create one."
 
-Route to `harness:harness-plan-writing` with the milestone context.
+Route to `claude-codex-harness:harness-plan-writing` with the milestone context.
 
 **Case B — `plan_file` exists, and the plan has unchecked tasks:**
 
@@ -128,7 +128,7 @@ Read the plan file. Count checked `- [x]` vs unchecked `- [ ]` tasks. Display:
 
 > "Plan has X/N tasks completed. Resuming from Task \<next unchecked task\>."
 
-Route to `harness:harness-execution` with the plan file and resume context.
+Route to `claude-codex-harness:harness-execution` with the plan file and resume context.
 
 **Case C — `plan_file` exists, all tasks checked, but `passed: false`:**
 
