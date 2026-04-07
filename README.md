@@ -1,4 +1,4 @@
-# harness v2.0.1
+# claude-codex-harness v2.0.1
 
 > **Built on [obra/superpowers](https://github.com/obra/superpowers)** — the agentic skills framework and software development methodology by Jesse Vincent. This project extends superpowers with cross-session milestone tracking, mandatory activity logging, an Orchestra / Executor / Reviewer agent architecture, and dual-engine Codex integration. If you haven't seen superpowers, start there first.
 
@@ -45,7 +45,7 @@ Inside a Claude Code session:
 
 ```
 /plugin marketplace add kuicao55/claude-plugins
-/plugin install harness@kuicao-plugins
+/plugin install claude-codex-harness@kuicao-plugins
 /reload-plugins
 ```
 
@@ -475,7 +475,7 @@ codex resume <session-id>  # continue in Codex app
 ### In this plugin repository
 
 ```
-harness/
+claude-codex-harness/
   agents/
     executor.md                    # Executor role definition
     spec-reviewer.md               # Spec Reviewer role definition
@@ -545,7 +545,7 @@ your-project/
 
 Both plugins can be installed simultaneously without conflict.
 
-| Feature | [superpowers](https://github.com/obra/superpowers) | harness v2.0.1 |
+| Feature | [superpowers](https://github.com/obra/superpowers) | claude-codex-harness v2.0.1 |
 | --- | --- | --- |
 | Trigger | SessionStart hook | Explicit `/harness:` commands |
 | Session scope | Single-session | Multi-session milestone tracking |

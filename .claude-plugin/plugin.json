@@ -1,5 +1,5 @@
 {
-  "name": "harness",
+  "name": "claude-codex-harness",
   "description": "Structured development workflow with Orchestra / Executor / Reviewer architecture, cross-session progress tracking, activity logging, Visual Companion, and dual-engine (Claude subagent or Codex) execution and review",
   "version": "2.0.1",
   "author": {
