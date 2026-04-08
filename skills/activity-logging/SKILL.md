@@ -1,6 +1,6 @@
 ---
 name: activity-logging
-description: "Mandatory post-task activity logging for claude-codex-harness. Prevents session memory loss by recording every completed task to a JSONL log file. Must be invoked after every task completion."
+description: "Mandatory post-task activity logging for super-harness. Prevents session memory loss by recording every completed task to a JSONL log file. Must be invoked after every task completion."
 ---
 
 # Activity Logging

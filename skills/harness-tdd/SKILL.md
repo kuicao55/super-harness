@@ -1,6 +1,6 @@
 ---
 name: harness-tdd
-description: "Test-Driven Development skill for claude-codex-harness Executors. Red-Green-Refactor cycle with strict discipline. Reference for Executor subagents and plan-writing."
+description: "Test-Driven Development skill for super-harness Executors. Red-Green-Refactor cycle with strict discipline. Reference for Executor subagents and plan-writing."
 ---
 
 # Harness TDD — Test-Driven Development

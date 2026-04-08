@@ -1,6 +1,6 @@
 ---
 name: harness-debugging
-description: "Systematic debugging methodology for claude-codex-harness. 4-phase root cause investigation before any fix. Use when encountering any bug, test failure, or unexpected behavior during execution."
+description: "Systematic debugging methodology for super-harness. 4-phase root cause investigation before any fix. Use when encountering any bug, test failure, or unexpected behavior during execution."
 ---
 
 # Harness Debugging — Systematic Root Cause Investigation

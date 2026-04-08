@@ -1,6 +1,6 @@
 ---
 name: harness-plan-writing
-description: "Scale-aware implementation planning for claude-codex-harness. Assesses project scope, manages claude-progress.json for large projects, and generates detailed session plan.md files following TDD discipline."
+description: "Scale-aware implementation planning for super-harness. Assesses project scope, manages claude-progress.json for large projects, and generates detailed session plan.md files following TDD discipline."
 ---
 
 # Harness Plan-Writing

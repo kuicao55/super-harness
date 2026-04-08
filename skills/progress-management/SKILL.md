@@ -1,6 +1,6 @@
 ---
 name: progress-management
-description: "Cross-session project progress tracking for claude-codex-harness. Manages claude-progress.json: creating, reading, updating milestones, and marking them passed. Only used for large multi-session projects."
+description: "Cross-session project progress tracking for super-harness. Manages claude-progress.json: creating, reading, updating milestones, and marking them passed. Only used for large multi-session projects."
 ---
 
 # Progress Management

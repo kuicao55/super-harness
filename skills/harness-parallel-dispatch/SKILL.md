@@ -1,6 +1,6 @@
 ---
 name: harness-parallel-dispatch
-description: "Parallel agent dispatch for claude-codex-harness Orchestra. Use when multiple independent tasks can be worked on simultaneously. Manages parallel Executor dispatch, conflict resolution, and integration verification."
+description: "Parallel agent dispatch for super-harness Orchestra. Use when multiple independent tasks can be worked on simultaneously. Manages parallel Executor dispatch, conflict resolution, and integration verification."
 ---
 
 # Harness Parallel Dispatch — Concurrent Executor Coordination

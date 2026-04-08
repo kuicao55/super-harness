@@ -1,12 +1,12 @@
 {
-  "name": "claude-codex-harness",
+  "name": "super-harness",
   "description": "Structured development workflow with Orchestra / Executor / Reviewer architecture, cross-session progress tracking, activity logging, Visual Companion, and dual-engine (Claude subagent or Codex) execution and review",
   "version": "2.0.2",
   "author": {
     "name": "kuicao"
   },
-  "homepage": "https://github.com/kuicao55/claude-codex-harness",
-  "repository": "https://github.com/kuicao55/claude-codex-harness",
+  "homepage": "https://github.com/kuicao55/super-harness",
+  "repository": "https://github.com/kuicao55/super-harness",
   "license": "MIT",
   "keywords": [
     "workflow",

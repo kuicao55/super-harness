@@ -1,6 +1,6 @@
 ---
 name: harness-brainstorming
-description: "Structured brainstorming for claude-codex-harness. Explores user intent, requirements and design before implementation. Use before any creative or feature work."
+description: "Structured brainstorming for super-harness. Explores user intent, requirements and design before implementation. Use before any creative or feature work."
 ---
 
 # Harness Brainstorming

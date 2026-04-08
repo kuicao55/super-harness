@@ -1,6 +1,6 @@
 ---
 name: harness-entry
-description: "Command routing and session resume logic for claude-codex-harness. Use when processing any /harness: command invocation."
+description: "Command routing and session resume logic for super-harness. Use when processing any /harness: command invocation."
 ---
 
 # Harness Entry — Command Router and Session Resumption

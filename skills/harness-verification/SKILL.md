@@ -1,6 +1,6 @@
 ---
 name: harness-verification
-description: "Verification before completion for claude-codex-harness. Run fresh evidence before claiming work is done. Use before marking any task, milestone, or project as complete."
+description: "Verification before completion for super-harness. Run fresh evidence before claiming work is done. Use before marking any task, milestone, or project as complete."
 ---
 
 # Harness Verification — Evidence Before Completion Claims

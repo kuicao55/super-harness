@@ -1,6 +1,6 @@
 ---
 name: harness-worktrees
-description: "Git worktree isolation for claude-codex-harness. Create isolated worktrees before feature work to prevent accidental changes to main/master. Use at the start of execution or plan phases."
+description: "Git worktree isolation for super-harness. Create isolated worktrees before feature work to prevent accidental changes to main/master. Use at the start of execution or plan phases."
 ---
 
 # Harness Worktrees — Git Isolation for Feature Work

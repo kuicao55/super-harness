@@ -1,6 +1,6 @@
 ---
 name: harness-finishing
-description: "Development branch completion for claude-codex-harness. Verifies tests, presents 4 integration options, and cleans up worktrees. Use when all tasks in a plan are complete."
+description: "Development branch completion for super-harness. Verifies tests, presents 4 integration options, and cleans up worktrees. Use when all tasks in a plan are complete."
 ---
 
 # Harness Finishing — Development Branch Completion

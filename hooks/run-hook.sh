@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cross-platform hook launcher for claude-codex-harness hooks
+# Cross-platform hook launcher for super-harness hooks
 # Usage: run-hook.sh <hook-name>
 #
 # Dispatches to the appropriate hook script.

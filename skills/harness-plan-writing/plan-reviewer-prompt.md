@@ -10,7 +10,7 @@ Use this template when dispatching a plan document reviewer subagent after writi
 Task tool (general-purpose):
   description: "Review harness plan document for milestone N"
   prompt: |
-    You are a plan document reviewer for the claude-codex-harness workflow.
+    You are a plan document reviewer for the super-harness workflow.
     Verify this plan is complete and ready for GvE (Generator vs. Evaluator) execution.
 
     **Plan to review:** [PLAN_FILE_PATH]
