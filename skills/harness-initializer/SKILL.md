@@ -14,7 +14,7 @@ Packages the current session state into a Handoff Document, then triggers `/clea
 This skill is called when ANY of these occur:
 
 1. **Milestone completion** — current milestone's last task passed Code Quality Review
-2. **Context threshold** — Orchestra has executed 5+ consecutive Tasks without reset
+2. **Context threshold** — Orchestrator has executed 5+ consecutive Tasks without reset
 3. **User manual call** — user invokes `/harness:initialize`
 4. **Resume handoff** — `docs/harness/handoffs/` contains a handoff document to load
 

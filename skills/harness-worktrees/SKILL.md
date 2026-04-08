@@ -21,7 +21,7 @@ All implementation work should happen in a dedicated branch. A git worktree prov
 
 ## When to Invoke This Skill
 
-- At the start of `harness:harness-execution` (Orchestra will call this)
+- At the start of `harness:harness-execution` (Orchestrator will call this)
 - When `harness:harness-brainstorming` or `harness:harness-plan-writing` ends and the user is about to begin execution
 - When the user asks to work in isolation
 - When resuming an existing worktree for continued work

@@ -1,11 +1,11 @@
 ---
 name: harness-parallel-dispatch
-description: "Parallel agent dispatch for super-harness Orchestra. Use when multiple independent tasks can be worked on simultaneously. Manages parallel Executor dispatch, conflict resolution, and integration verification."
+description: "Parallel agent dispatch for super-harness Orchestrator. Use when multiple independent tasks can be worked on simultaneously. Manages parallel Executor dispatch, conflict resolution, and integration verification."
 ---
 
 # Harness Parallel Dispatch — Concurrent Executor Coordination
 
-When multiple tasks are truly independent, Orchestra can dispatch them in parallel to different Executor agents (Claude subagents or Codex instances) to save time. This skill handles the decision, dispatch, conflict resolution, and integration.
+When multiple tasks are truly independent, Orchestrator can dispatch them in parallel to different Executor agents (Claude subagents or Codex instances) to save time. This skill handles the decision, dispatch, conflict resolution, and integration.
 
 **Announce at start:** "I'm using the harness-parallel-dispatch skill to coordinate parallel execution."
 
@@ -21,7 +21,7 @@ Incorrectly parallelizing tasks with hidden dependencies causes merge conflicts,
 
 ## When to Invoke This Skill
 
-Orchestra invokes this skill when deciding task execution order. Invoke explicitly when:
+Orchestrator invokes this skill when deciding task execution order. Invoke explicitly when:
 
 - A set of plan tasks has no inter-dependencies
 - The user asks for faster execution through parallelism

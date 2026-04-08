@@ -1,13 +1,13 @@
 # Codex Call Templates
 
-Use this file when Orchestra chooses Codex as the engine for Executor or Reviewer roles.
+Use this file when Orchestrator chooses Codex as the engine for Executor or Reviewer roles.
 All Codex commands are provided by the `codex-plugin-cc` plugin (`/codex:*`).
 
 ---
 
 ## Executor Engine: `/codex:rescue`
 
-Use when Orchestra selects Codex as the Executor for a task (instead of Claude subagent).
+Use when Orchestrator selects Codex as the Executor for a task (instead of Claude subagent).
 Also use when a Claude subagent Executor reports BLOCKED and the user chooses Codex rescue.
 
 ### Task Delegation Template
@@ -67,7 +67,7 @@ Working directory: [DIRECTORY]
 
 ## Reviewer Engine (Stage 1): `/codex:review`
 
-Use when Orchestra selects Codex as the Spec Reviewer (instead of Claude subagent).
+Use when Orchestrator selects Codex as the Spec Reviewer (instead of Claude subagent).
 This is a read-only standard review — cannot be directed with focus text.
 
 ### Standard Spec Review
@@ -102,7 +102,7 @@ Codex review output → SPEC_ISSUES when:
 
 ## Reviewer Engine (Stage 2): `/codex:adversarial-review`
 
-Use when Orchestra selects Codex as the Code Quality Reviewer (instead of or alongside Claude subagent).
+Use when Orchestrator selects Codex as the Code Quality Reviewer (instead of or alongside Claude subagent).
 This review IS steerable — provide focus text for security-sensitive areas.
 
 ### Standard Adversarial Review
@@ -158,7 +158,7 @@ Severity mapping:
 
 ## Dual Review: Claude subagent + Codex (Maximum Quality)
 
-When Orchestra selects "both" for Code Quality Review:
+When Orchestrator selects "both" for Code Quality Review:
 
 1. Dispatch Claude subagent with `code-quality-reviewer-prompt.md` (runs immediately)
 2. Simultaneously run `/codex:adversarial-review --background [focus text]`
@@ -173,7 +173,7 @@ When Orchestra selects "both" for Code Quality Review:
 
 ## Task Management Commands
 
-Orchestra uses these to manage background Codex jobs:
+Orchestrator uses these to manage background Codex jobs:
 
 ```bash
 # Check on a running job

@@ -32,7 +32,7 @@ Route directly to `harness:harness-plan-writing`. No state check needed. The pla
 
 ### If invoked via `/harness:execute`
 
-**Execution gate (same as `commands/execute.md` and `harness-execution`):** Orchestra does not implement or review code directly. Route to `harness:harness-execution` and follow its HARD-GATE: dispatch Executor and both reviewers (subagent or Codex), confirm engine with the user every stage, maintain TodoWrite from the start, and only close a task after Code Quality Review **PASS**.
+**Execution gate (same as `commands/execute.md` and `harness-execution`):** Orchestrator does not implement or review code directly. Route to `harness:harness-execution` and follow its HARD-GATE: dispatch Executor and both reviewers (subagent or Codex), confirm engine with the user every stage, maintain TodoWrite from the start, and only close a task after Code Quality Review **PASS**.
 
 Check if a plan file exists. Ask the user: "Which plan file should I execute? (Provide the path, or press Enter if there's only one plan in `docs/harness/plans/`)"
 
@@ -48,7 +48,7 @@ Route to `harness:harness-initializer`. This skill creates a Handoff Document an
 
 ### If invoked via `/harness:tdd-audit`
 
-Route to `harness:harness-tdd-audit`. This skill is typically called by Orchestra internally after Executor reports DONE. It can also be triggered manually to audit a completed task. Requires Executor report + file list as input.
+Route to `harness:harness-tdd-audit`. This skill is typically called by Orchestrator internally after Executor reports DONE. It can also be triggered manually to audit a completed task. Requires Executor report + file list as input.
 
 ### If invoked via `/harness:resume`
 
@@ -140,7 +140,7 @@ Look for the most recent file in `docs/harness/handoffs/` directory.
 /harness:resume
 ```
 
-Inject the Handoff Document content into the Orchestra's initial context for this session.
+Inject the Handoff Document content into the Orchestrator's initial context for this session.
 
 - If no Handoff Document exists: proceed to Step 3 (no warning needed — this is normal for new sessions)
 

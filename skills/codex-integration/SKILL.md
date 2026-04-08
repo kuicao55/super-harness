@@ -1,11 +1,11 @@
 ---
 name: codex-integration
-description: "Orchestra's Codex operations manual. Full command reference for codex-plugin-cc, availability detection, dispatch workflow, output parsing, and token cost guidance. Use when Orchestra needs to operate Codex as Executor or Reviewer engine."
+description: "Orchestrator's Codex operations manual. Full command reference for codex-plugin-cc, availability detection, dispatch workflow, output parsing, and token cost guidance. Use when Orchestrator needs to operate Codex as Executor or Reviewer engine."
 ---
 
-# Codex Integration — Orchestra Operations Manual
+# Codex Integration — Orchestrator Operations Manual
 
-Orchestra can delegate tasks to Codex as an alternative engine for Executor and Reviewer roles. This manual covers everything needed to operate Codex correctly from within an Orchestra session.
+Orchestrator can delegate tasks to Codex as an alternative engine for Executor and Reviewer roles. This manual covers everything needed to operate Codex correctly from within an Orchestrator session.
 
 All commands are provided by the `codex-plugin-cc` plugin (v1.0.2+): [https://github.com/openai/codex-plugin-cc](https://github.com/openai/codex-plugin-cc)
 
@@ -20,7 +20,7 @@ Before using any Codex engine, check availability:
 2. If setup reports Codex ready → codex_available = true
 3. If Codex missing and npm is available → offer: "Codex is not installed. /codex:setup can install it automatically. Install now? (yes/no)"
 4. If installed but not authenticated → prompt: "Please run !codex login to complete authentication"
-5. If unavailable for any reason → `codex_available = false`. Orchestra must **still** present each stage’s Decision Point to the user; Codex options are omitted or marked unavailable, and the user confirms Claude subagent (or cancels). Do not silently skip asking.
+5. If unavailable for any reason → `codex_available = false`. Orchestrator must **still** present each stage’s Decision Point to the user; Codex options are omitted or marked unavailable, and the user confirms Claude subagent (or cancels). Do not silently skip asking.
 ```
 
 Set `codex_available` once at session start. Do not re-check during the session unless explicitly needed.
@@ -131,7 +131,7 @@ Set `codex_available` once at session start. Do not re-check during the session 
 
 ### Task Management Commands
 
-Orchestra uses these to manage background Codex jobs:
+Orchestrator uses these to manage background Codex jobs:
 
 #### `/codex:status [task-id]`
 
@@ -170,7 +170,7 @@ Cancel a running background task.
 
 ---
 
-## C. Standard Orchestra Workflow for Codex Operations
+## C. Standard Orchestrator Workflow for Codex Operations
 
 ```
 Phase 1: Dispatch
@@ -313,7 +313,7 @@ Display relevant rows at Decision Points to help user choose:
 
 ## G. Decision Point Presentation Template
 
-When Orchestra presents a Codex Decision Point to the user, use this format:
+When Orchestrator presents a Codex Decision Point to the user, use this format:
 
 ```
 [Decision Point: Executor / Spec Reviewer / Code Quality Reviewer]

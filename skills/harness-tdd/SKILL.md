@@ -194,7 +194,7 @@ These scenarios trigger an **immediate halt**. Do not continue. Do not try to fi
 | Executor skipped directly to implementation without a failing test | STOP. This is a HARD-GATE violation. Restart from Red phase. |
 
 **Restart Protocol:**
-1. Report `Status: PROCESS_VIOLATION` to Orchestra
+1. Report `Status: PROCESS_VIOLATION` to Orchestrator
 2. Delete or revert implementation files created in violation
 3. Start fresh: write the failing test
 4. Proceed through Red-Green-Refactor normally

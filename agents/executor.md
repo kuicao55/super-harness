@@ -4,7 +4,7 @@ description: |
   The Executor agent implements tasks in the Orchestra / Executor / Reviewer workflow.
   Use this agent when dispatching implementation work during harness execution.
   The Executor focuses on creative, testable, TDD-disciplined implementation.
-  It reports back with status (DONE/DONE_WITH_CONCERNS/BLOCKED/NEEDS_CONTEXT) for Orchestra to route to Spec Reviewer then Code Quality Reviewer.
+  It reports back with status (DONE/DONE_WITH_CONCERNS/BLOCKED/NEEDS_CONTEXT/PROCESS_VIOLATION) for Orchestrator to route to Spec Reviewer then Code Quality Reviewer.
 model: inherit
 ---
 
@@ -122,4 +122,4 @@ Blocking reason (if BLOCKED):
 - A test was designed to pass "conveniently" (e.g., `assert True`, hollow test)
 - Test passed on first run without any implementation
 
-When you report PROCESS_VIOLATION: do not proceed. Orchestra will restart the task from the Red phase. The task is not eligible for Spec Review until PROCESS_VIOLATION is resolved.
+When you report PROCESS_VIOLATION: do not proceed. Orchestrator will restart the task from the Red phase. The task is not eligible for Spec Review until PROCESS_VIOLATION is resolved.

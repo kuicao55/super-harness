@@ -1,23 +1,23 @@
 ---
 name: harness-execution
-description: "Execute implementation plans using the Orchestra / Executor / Reviewer architecture. Orchestra coordinates Executor (implementation) and two-stage Reviewer (Spec Review then Code Quality Review). Each role can use Claude subagent or Codex as the engine. Only Code Quality Review PASS closes a task."
+description: "Execute implementation plans using the Orchestra / Executor / Reviewer architecture. Orchestrator coordinates Executor (implementation) and two-stage Reviewer (Spec Review then Code Quality Review). Each role can use Claude subagent or Codex as the engine. Only Code Quality Review PASS closes a task."
 ---
 
-# Harness Execution — Orchestra Architecture
+# Harness Execution — Orchestrator Architecture
 
-Execute a plan task by task. Orchestra coordinates: Executor implements (TDD), Spec Reviewer verifies requirements, Code Quality Reviewer attacks the code adversarially. Each role can use Claude subagent or Codex engine. Only Code Quality Review PASS closes a task.
+Execute a plan task by task. Orchestrator coordinates: Executor implements (TDD), Spec Reviewer verifies requirements, Code Quality Reviewer attacks the code adversarially. Each role can use Claude subagent or Codex engine. Only Code Quality Review PASS closes a task.
 
-**Announce at start:** "I'm using the harness-execution skill with Orchestra / Executor / Reviewer architecture."
+**Announce at start:** "I'm using the harness-execution skill with Orchestrator / Executor / Reviewer architecture."
 
 <HARD-GATE>
-Until Code Quality Review returns an explicit PASS for the current task, Orchestra MUST NOT:
+Until Code Quality Review returns an explicit PASS for the current task, Orchestrator MUST NOT:
 
 - Edit application/source code, tests, or config (no `Update`, `Write`, `StrReplace`, or equivalent on product files)
 - Perform Spec Review or Code Quality Review inline (no "I'll review the code myself")
 - Skip Executor/Reviewer dispatch because the project is "small" or "simple"
 - Claim a task or milestone complete without both review stages and explicit verdicts
 
-Orchestra ONLY: load plan, ask user for engine choice each stage, dispatch Task/Subagent or Codex, merge results, update TodoWrite, update plan checkboxes after PASS, invoke activity-logging.
+Orchestrator ONLY: load plan, ask user for engine choice each stage, dispatch Task/Subagent or Codex, merge results, update TodoWrite, update plan checkboxes after PASS, invoke activity-logging.
 
 Violating this gate invalidates the run; stop and restart the task with proper dispatch.
 </HARD-GATE>
@@ -35,11 +35,11 @@ Executor self-review does not count. Spec Review alone does not count. Only the 
 **Dispatch mandate (hard requirement):**
 
 ```
-ORCHESTRA MUST NEVER IMPLEMENT OR REVIEW CODE DIRECTLY.
+ORCHESTRATOR MUST NEVER IMPLEMENT OR REVIEW CODE DIRECTLY.
 EXECUTOR AND REVIEWER WORK MUST ALWAYS BE DISPATCHED TO A SUBAGENT OR CODEX.
 ```
 
-If Orchestra edits code directly (instead of dispatching), that task run is invalid and must be re-run with proper dispatch.
+If Orchestrator edits code directly (instead of dispatching), that task run is invalid and must be re-run with proper dispatch.
 
 ---
 
@@ -69,7 +69,7 @@ If the user says no, pause and resolve (install Codex, or abort the stage). Neve
 
 ### Step 3: Engine Confirmation Policy (Mandatory)
 
-For every task stage (Executor, Spec Review, Code Quality Review), Orchestra MUST explicitly ask the user whether to use Codex or Claude subagent. No silent defaults.
+For every task stage (Executor, Spec Review, Code Quality Review), Orchestrator MUST explicitly ask the user whether to use Codex or Claude subagent. No silent defaults.
 
 You may remember the user's previous preference, but still ask for confirmation:
 
@@ -100,7 +100,7 @@ Repeat this flow for each task in the plan.
 
 ### ORCHESTRATOR SELF-CHECK (run before each Decision Point)
 
-Before entering **Executor Decision Point**, **Spec Review Decision Point**, or **Code Quality Review Decision Point**, Orchestra must run this self-check:
+Before entering **Executor Decision Point**, **Spec Review Decision Point**, or **Code Quality Review Decision Point**, Orchestrator must run this self-check:
 
 ```
 ORCHESTRATOR SELF-CHECK:
@@ -162,7 +162,7 @@ Handle Executor status:
 
 This decision point is MANDATORY. It cannot be skipped even if the task is "simple" or the Executor is "trusted."
 
-Orchestra calls `harness:tdd-audit` with:
+Orchestrator calls `harness:tdd-audit` with:
 - Executor's full report (including TEST_OUTPUT)
 - List of files created/modified
 
@@ -310,13 +310,13 @@ Handle verdict:
 
 ### Dispatch Validation Checklist (Run per task)
 
-Before marking a task complete, Orchestra must verify:
+Before marking a task complete, Orchestrator must verify:
 
 - Executor was dispatched (Claude subagent Task OR Codex rescue), not run inline
 - Spec Reviewer was dispatched (Claude subagent Task OR Codex review), not run inline
 - Code Quality Reviewer was dispatched (Claude subagent Task/Codex/both), not run inline
 
-If any stage was done inline by Orchestra, mark task invalid and re-run that stage via proper dispatch.
+If any stage was done inline by Orchestrator, mark task invalid and re-run that stage via proper dispatch.
 
 ### User-visible Progress Requirement
 
@@ -360,7 +360,7 @@ After Code Quality Review PASS:
 
 ### Per-Step Todo Updates (Superpowers-style behavior)
 
-Within each task, Orchestra must also maintain sub-step progress in TodoWrite so the user sees continuous progress, not just plan checkbox edits.
+Within each task, Orchestrator must also maintain sub-step progress in TodoWrite so the user sees continuous progress, not just plan checkbox edits.
 
 Recommended sub-steps per task:
 
@@ -422,7 +422,7 @@ As each sub-step starts/completes:
 - Skipping activity logging after task completion
 - Marking a milestone passed without all tasks being Code Quality Review approved
 - Using the same agent instance for Executor and any Reviewer role
-- Orchestra directly editing code or directly performing review work
+- Orchestrator directly editing code or directly performing review work
 
 ---
 

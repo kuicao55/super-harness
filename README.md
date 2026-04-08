@@ -31,7 +31,7 @@ A Claude Code skill plugin for structured, long-running software development pro
 | **Orchestra / Executor / Reviewer** | Every task: Executor (TDD) → **TDD Audit** (process compliance) → Spec Reviewer (compliance) → Code Quality Reviewer (adversarial). Only Code Quality Review PASS completes a task. |
 | **Dual-engine roles**               | Each role can use Claude subagent or Codex (`/codex:rescue`, `/codex:review`, `/codex:adversarial-review`). Engine choice is explicitly confirmed with the user at every task stage. |
 | **Unified command routing**         | All `/harness:` commands route through `harness-entry` for consistent cross-cutting concern initialization.                                                                          |
-| **Live Todo progress**              | During execution, Orchestra maintains a live TodoWrite list (task + sub-step level: Executor → TDD Audit → Spec Review → Code Quality Review → Logging).                                |
+| **Live Todo progress**              | During execution, Orchestrator maintains a live TodoWrite list (task + sub-step level: Executor → TDD Audit → Spec Review → Code Quality Review → Logging).                                |
 | **Cross-session progress**          | `status/claude-progress.json` tracks milestones across sessions. Step-level tracking via `current_task` field + human-readable `status/PROGRESS.md`.                                  |
 | **Activity logging**                | Every completed task logged to `logs/activity-YYYY-MM-DD.jsonl` — engine used, Codex session IDs, review verdicts, deferred items, PROCESS_VIOLATION events.                           |
 | **Visual Companion**                | Optional browser UI during brainstorming for mockups, architecture diagrams, and design option cards.                                                                                |
@@ -65,7 +65,7 @@ claude --plugin-dir ./super-harness
 /plugin marketplace add openai/codex-plugin-cc
 ```
 
-Requires a ChatGPT subscription. After installation, restart Claude Code. If Codex is not installed, Orchestra still asks you to confirm the engine each stage; only the Codex options are unavailable (Claude subagent remains).
+Requires a ChatGPT subscription. After installation, restart Claude Code. If Codex is not installed, Orchestrator still asks you to confirm the engine each stage; only the Codex options are unavailable (Claude subagent remains).
 
 ---
 
@@ -75,11 +75,11 @@ Requires a ChatGPT subscription. After installation, restart Claude Code. If Cod
 | --------------------- | --------- | ----------------------------------------------------------------------------------------------- |
 | `/harness:brainstorm` | Design    | Structured brainstorming with scope decomposition and optional Visual Companion                  |
 | `/harness:plan`       | Planning  | Scale-aware implementation planning with milestone tracking (TDD_EVIDENCE per task)              |
-| `/harness:execute`    | Execution | Orchestra-mode plan execution with 4 Decision Points (Executor → TDD Audit → Spec → Quality)    |
+| `/harness:execute`    | Execution | Orchestrator-mode plan execution with 4 Decision Points (Executor → TDD Audit → Spec → Quality)    |
 | `/harness:resume`     | Resume    | Resume previous session (loads Handoff Document + progress + activity log)                      |
 | `/harness:status`     | Read-only | Display current milestone and task progress                                                      |
 | `/harness:initialize` | Session   | Package session state into Handoff Document, trigger `/clear` for fresh context                 |
-| `/harness:tdd-audit` | Audit     | Manual TDD Process Audit (normally called automatically by Orchestra between Executor and Spec)  |
+| `/harness:tdd-audit` | Audit     | Manual TDD Process Audit (normally called automatically by Orchestrator between Executor and Spec)  |
 
 All commands route through `harness-entry`, which initializes cross-cutting concerns (`progress-management`, `activity-logging`) for every command path.
 
@@ -98,7 +98,7 @@ Use this to confirm a `/harness:execute` run actually followed the harness (not 
 7. **TodoWrite** — A live todo list was updated across sub-steps (Executor → TDD Audit → Spec → Quality → Logging), not only plan markdown checkboxes.
 8. **Activity logging** — After each completed task, `harness:activity-logging` was invoked with engines, verdicts, and any PROCESS_VIOLATION events.
 9. **Context Reset** — After milestone completion or every 5 consecutive tasks, `harness:initialize` was invoked to create a Handoff Document and trigger `/clear`.
-10. **Orchestrator Self-Check** — At each Decision Point, Orchestra verified it was not writing code, not doing Executor work, and not reviewing inline.
+10. **Orchestrator Self-Check** — At each Decision Point, Orchestrator verified it was not writing code, not doing Executor work, and not reviewing inline.
 
 Strict O/E/R adds turns and latency by design; that is expected when compliance matters.
 
@@ -139,11 +139,11 @@ Strict O/E/R adds turns and latency by design; that is expected when compliance 
 
 **Iron Law:** Executor writes code. Reviewers review it. These are **never** the same agent instance.
 
-**Dispatch Law:** Orchestra must never write code or review code directly. Executor/Reviewer work must be dispatched to subagent or Codex.
+**Dispatch Law:** Orchestrator must never write code or review code directly. Executor/Reviewer work must be dispatched to subagent or Codex.
 
 ### Orchestrator Self-Check
 
-Before every Decision Point, Orchestra runs a mandatory self-check:
+Before every Decision Point, Orchestrator runs a mandatory self-check:
 
 ```
 ORCHESTRATOR SELF-CHECK:
@@ -251,7 +251,7 @@ flowchart TD
     D2 --> D4[Plan self-review]
     D3 --> D4
     D4 --> D5["Plan complete — ready to execute?"]
-    D5 --> E["harness-execution (Orchestra)"]
+    D5 --> E["harness-execution (Orchestrator)"]
     E --> E1["Check Codex: /codex:setup"]
     E1 --> E2[Ask user engine choice at each stage]
     E2 --> F{For each task}
@@ -317,7 +317,7 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    A["Orchestra Decision Point"] --> B{codex_available?}
+    A["Orchestrator Decision Point"] --> B{codex_available?}
     B -->|no| C[Claude subagent used automatically]
     B -->|yes| D{Session default set?}
     D -->|yes| E[Use default engine]
@@ -391,7 +391,7 @@ Say yes, or run:
 /harness:execute
 ```
 
-The Orchestra will:
+The Orchestrator will:
 
 1. Check Codex availability (`/codex:setup`)
 2. At each stage, explicitly ask whether to use Claude subagent or Codex (no silent default)
@@ -446,7 +446,7 @@ Enter choice (1-2, default: 1):
 - Security-sensitive code that benefits from adversarial Codex review
 - You want dual Code Quality Review for maximum confidence
 
-**Session-wide default:** At session start you can set a default engine for all roles, so Orchestra won't ask per-task.
+**Session-wide default:** At session start you can set a default engine for all roles, so Orchestrator won't ask per-task.
 
 ---
 
@@ -469,11 +469,11 @@ Mockup files persist in `.harness/brainstorm/` (add `.harness/` to your `.gitign
 
 ### Parallel Execution
 
-When multiple tasks are independent (no shared files, no sequential dependency), Orchestra can dispatch them in parallel:
+When multiple tasks are independent (no shared files, no sequential dependency), Orchestrator can dispatch them in parallel:
 
 > "Tasks 3 and 4 appear to be independent. Dispatch in parallel? (yes/no)"
 
-Each parallel Executor gets its own git worktree. After all complete review stages, Orchestra checks for merge conflicts before integrating.
+Each parallel Executor gets its own git worktree. After all complete review stages, Orchestrator checks for merge conflicts before integrating.
 
 ---
 
@@ -501,7 +501,7 @@ Worktrees are cleaned up automatically after merge or PR.
 | `harness:harness-entry`             | Command routing and resume logic. Reads activity log and Handoff Documents on resume.          |
 | `harness:harness-brainstorming`     | Structured brainstorming: scope decomposition, Visual Companion, design spec writing.           |
 | `harness:harness-plan-writing`      | Scale-aware planning. Small: single plan. Large: `claude-progress.json` + per-milestone plan. TDD_EVIDENCE field required per task. |
-| `harness:harness-execution`         | Orchestra: 4 Decision Points per task (Executor → TDD Audit → Spec Review → Code Quality Review), Orchestrator self-check, context reset triggers, activity logging. |
+| `harness:harness-execution`         | Orchestrator: 4 Decision Points per task (Executor → TDD Audit → Spec Review → Code Quality Review), Orchestrator self-check, context reset triggers, activity logging. |
 | `harness:harness-debugging`         | 4-phase root cause investigation (identify → pattern analysis → hypothesis → fix).              |
 | `harness:harness-verification`      | Evidence-before-completion gate: IDENTIFY → RUN → READ → VERIFY → CLAIM.                        |
 | `harness:harness-tdd`               | TDD reference: Red-Green-Refactor, Rationalization Counter-Tables, Red Flags STOP rules, Regression Test Validation Pattern. |
@@ -578,7 +578,7 @@ super-harness/
       scripts/                     # WebSocket server + helper scripts
     harness-plan-writing/SKILL.md  # Scale-aware planning
     harness-execution/
-      SKILL.md                     # Orchestra execution loop
+      SKILL.md                     # Orchestrator execution loop
       executor-prompt.md           # Executor subagent prompt template
       spec-reviewer-prompt.md      # Spec Reviewer subagent prompt template
       code-quality-reviewer-prompt.md  # Code Quality Reviewer prompt template

@@ -12,7 +12,7 @@ Until Code Quality Review returns an explicit **PASS** for the current task, you
 
 You MUST:
 
-- Dispatch Executor and both review stages via **Task/Subagent** or **Codex** (never implement or review as Orchestra in this session)
+- Dispatch Executor and both review stages via **Task/Subagent** or **Codex** (never implement or review as Orchestrator in this session)
 - Ask the user to confirm the engine **every task, every stage** (Executor, Spec Review, Code Quality Review). If Codex is unavailable, still ask: proceed with Claude subagent only? (yes/no)
 - Create **TodoWrite** on the first turn of execution and update it through each task and sub-step (Executor → Spec Review → Code Quality Review → post-task)
 - Obtain explicit **SPEC_COMPLIANT** (or equivalent) and **PASS** from dispatched reviewers before marking a task complete

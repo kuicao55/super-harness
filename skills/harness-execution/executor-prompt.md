@@ -135,7 +135,7 @@ Task tool (general-purpose):
     - A test was designed to pass "conveniently" (e.g., `assert True`, no real assertion)
     - Test passed on first run without any implementation
 
-    When you report PROCESS_VIOLATION: do not proceed with the task. Orchestra will restart the task from Red phase.
+    When you report PROCESS_VIOLATION: do not proceed with the task. Orchestrator will restart the task from Red phase.
 
     Use DONE_WITH_CONCERNS if you completed the work but have doubts about correctness.
     Use BLOCKED if you cannot complete the task.

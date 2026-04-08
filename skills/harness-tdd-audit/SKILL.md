@@ -1,21 +1,21 @@
 ---
 name: harness-tdd-audit
-description: "TDD Process Audit skill for super-harness. Verifies Executor completed tasks with genuine TDD discipline. Called by Orchestra after Executor reports DONE and before Spec Review."
+description: "TDD Process Audit skill for super-harness. Verifies Executor completed tasks with genuine TDD discipline. Called by Orchestrator after Executor reports DONE and before Spec Review."
 ---
 
 # Harness TDD Audit
 
-Verifies that the Executor applied genuine TDD discipline on a completed task. Called by Orchestra as a mandatory gate between Executor DONE and Spec Review. TDD_AUDIT: PASS is required to proceed; FAIL returns the task to Executor for re-implementation.
+Verifies that the Executor applied genuine TDD discipline on a completed task. Called by Orchestrator as a mandatory gate between Executor DONE and Spec Review. TDD_AUDIT: PASS is required to proceed; FAIL returns the task to Executor for re-implementation.
 
 **Announce at start:** "I'm using the harness-tdd-audit skill to verify TDD process compliance."
 
 ## Trigger
 
-This skill is invoked by Orchestra after:
+This skill is invoked by Orchestrator after:
 1. Executor reports `Status: DONE` or `Status: DONE_WITH_CONCERNS`
-2. Orchestra has received the Executor's report including `TEST_OUTPUT`
+2. Orchestrator has received the Executor's report including `TEST_OUTPUT`
 
-**Input required from Orchestra:**
+**Input required from Orchestrator:**
 - Executor report (status + TEST_OUTPUT)
 - List of files created/modified during the task (implementation files + test files)
 
@@ -88,7 +88,7 @@ Notes (if any checks had caveats):
 If any check returns CANNOT_VERIFY (e.g., git history unavailable, TEST_OUTPUT missing):
 
 - Treat as **TDD_AUDIT: FAIL** by default (do not trust unverified claims)
-- Orchestra: return task to Executor with `Status: PROCESS_VIOLATION` for re-implementation
+- Orchestrator: return task to Executor with `Status: PROCESS_VIOLATION` for re-implementation
 
 ## Referenced Rules
 
@@ -98,4 +98,4 @@ This skill enforces the constraints defined in `harness-tdd/SKILL.md`:
 - **Red Flags — STOP and Restart** — scenarios that require immediate halt and restart from Red phase
 - **Regression Test Validation Pattern** — the Write→Pass→Revert→Fail→Restore→Pass sequence
 
-When a TDD_AUDIT FAIL matches a Red Flag condition, include the Red Flag restart protocol in the Orchestra's guidance.
+When a TDD_AUDIT FAIL matches a Red Flag condition, include the Red Flag restart protocol in the Orchestrator's guidance.
