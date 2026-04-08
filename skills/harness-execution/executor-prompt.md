@@ -115,12 +115,27 @@ Task tool (general-purpose):
     ## Report Format
 
     When done, report:
-    - **Status:** DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
+    - **Status:** DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT | PROCESS_VIOLATION
     - What you implemented
     - Test results (command run + output summary)
+    - **TEST_OUTPUT:** Paste the actual command output here — not a summary, not your interpretation. The raw output is required. Example:
+      ```
+      TEST_OUTPUT:
+      $ pytest tests/test_foo.py::test_bar -v
+      FAILED tests/test_foo.py::test_bar
+      AssertionError: expected 42, got None
+      ```
+      Reports without TEST_OUTPUT are automatically demoted to IN_PROGRESS and returned for resubmission.
     - Files changed (with brief description of each change)
     - Self-review findings (if any)
     - Any concerns or issues
+
+    **PROCESS_VIOLATION (T4):** Use `Status: PROCESS_VIOLATION` when you discover TDD sequence violations:
+    - Implementation code was created before its test file
+    - A test was designed to pass "conveniently" (e.g., `assert True`, no real assertion)
+    - Test passed on first run without any implementation
+
+    When you report PROCESS_VIOLATION: do not proceed with the task. Orchestra will restart the task from Red phase.
 
     Use DONE_WITH_CONCERNS if you completed the work but have doubts about correctness.
     Use BLOCKED if you cannot complete the task.

@@ -42,6 +42,14 @@ Then route to `harness:harness-execution` with the specified plan.
 
 Display status as defined in the `commands/status.md` command. Do not route further.
 
+### If invoked via `/harness:initialize`
+
+Route to `harness:harness-initializer`. This skill creates a Handoff Document and triggers `/clear` for a fresh session context. Supports milestone completion, context threshold (5+ consecutive tasks), and manual invocation.
+
+### If invoked via `/harness:tdd-audit`
+
+Route to `harness:harness-tdd-audit`. This skill is typically called by Orchestra internally after Executor reports DONE. It can also be triggered manually to audit a completed task. Requires Executor report + file list as input.
+
 ### If invoked via `/harness:resume`
 
 Follow the full resume flow below.
@@ -107,6 +115,34 @@ Surface any entries with:
 - `generator_status: BLOCKED` — flag tasks that were problematic
 
 > "⚠️ Deferred items from previous session: [list notes from activity log]"
+
+### Step 2.6: Load Handoff Document (if exists)
+
+Look for the most recent file in `docs/harness/handoffs/` directory.
+
+- If a Handoff Document exists: read it and display the session state summary:
+
+```
+## Previous Session Handoff Found
+
+**Handoff timestamp:** <YYYY-MM-DD HH:MM>
+
+### Current Milestone
+<milestone summary from handoff>
+
+### Pending Tasks
+<table of pending tasks>
+
+### Next Steps
+<ordered next actions from handoff>
+
+### Resume Command
+/harness:resume
+```
+
+Inject the Handoff Document content into the Orchestra's initial context for this session.
+
+- If no Handoff Document exists: proceed to Step 3 (no warning needed — this is normal for new sessions)
 
 ### Step 3: Check Dependency Prerequisites
 

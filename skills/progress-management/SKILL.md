@@ -38,9 +38,23 @@ The full schema for `status/claude-progress.json`:
       "session_date": null,
       "notes": null
     }
-  ]
+  ],
+  "current_task": {
+    "id": "task-N",
+    "title": "string — task title from plan",
+    "step": "executor | tdd-audit | spec-review | quality-review | logging",
+    "step_status": "pending | in_progress | passed | failed",
+    "last_updated": "ISO-8601 timestamp"
+  }
 }
 ```
+
+**Field rules for `current_task`:**
+
+- `step` reflects the current sub-step within the Per-Task Flow: `executor` → `tdd-audit` → `spec-review` → `quality-review` → `logging`
+- `step_status`: `pending` (not started), `in_progress` (currently running), `passed` (completed successfully), `failed` (failed and needs retry/escalation)
+- `last_updated` is updated on every step transition
+- When a task is closed (passed all reviews), `current_task` is cleared (`null`) until the next task begins
 
 **Field rules:**
 
@@ -113,6 +127,49 @@ For each dep in current_milestone.depends_on:
 ```
 
 This is a warning, not a blocker. The user may choose to proceed anyway (e.g., working in parallel branches).
+
+---
+
+## PROGRESS.md — Human-Readable Status
+
+Whenever `claude-progress.json` is updated, also write/update `status/PROGRESS.md` as a human-readable companion file. This file is auto-generated and should not be edited manually.
+
+**File:** `status/PROGRESS.md`
+
+**Format:**
+
+```markdown
+# Project: <project name>
+
+**Last updated:** <ISO-8601 timestamp>
+
+## Milestone Progress
+
+- ✅ **Milestone 1:** <title> — completed <session_date>
+- 🔄 **Milestone 2:** <title> — in progress
+- ⏳ **Milestone 3:** <title> — not started
+
+## Current Task
+
+**Task:** Task N — <title>
+**Step:** <executor | tdd-audit | spec-review | quality-review | logging>
+**Status:** <pending | in_progress | passed | failed>
+**Updated:** <ISO-8601>
+
+## Recent Activity (last 5 entries)
+
+- <time> — task-N — <step> — <passed | failed>
+- <time> — task-N+1 — <step> — <passed | failed>
+- ...
+```
+
+**When to update PROGRESS.md:**
+
+- When `current_task.step` changes (step transition within a task)
+- When a task is opened or closed
+- When a milestone is marked passed
+
+This file supplements `claude-progress.json` with human-visible context for quick orientation during resume.
 
 ---
 

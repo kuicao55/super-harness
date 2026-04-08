@@ -1,4 +1,4 @@
-# super-harness v2.0.2
+# super-harness v3.0.0
 
 > **Built on [obra/superpowers](https://github.com/obra/superpowers)** — the agentic skills framework and software development methodology by Jesse Vincent. This project extends superpowers with cross-session milestone tracking, mandatory activity logging, an Orchestra / Executor / Reviewer agent architecture, and dual-engine Codex integration. If you haven't seen superpowers, start there first.
 
@@ -28,14 +28,15 @@ A Claude Code skill plugin for structured, long-running software development pro
 
 | Feature                             | Description                                                                                                                                                                          |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Orchestra / Executor / Reviewer** | Every task: Executor (TDD) → Spec Reviewer (compliance) → Code Quality Reviewer (adversarial). Only Code Quality Review PASS completes a task.                                       |
+| **Orchestra / Executor / Reviewer** | Every task: Executor (TDD) → **TDD Audit** (process compliance) → Spec Reviewer (compliance) → Code Quality Reviewer (adversarial). Only Code Quality Review PASS completes a task. |
 | **Dual-engine roles**               | Each role can use Claude subagent or Codex (`/codex:rescue`, `/codex:review`, `/codex:adversarial-review`). Engine choice is explicitly confirmed with the user at every task stage. |
 | **Unified command routing**         | All `/harness:` commands route through `harness-entry` for consistent cross-cutting concern initialization.                                                                          |
-| **Live Todo progress**              | During execution, Orchestra maintains a live TodoWrite list (task + sub-step level), similar to superpowers' persistent progress panel behavior.                                     |
-| **Cross-session progress**          | `status/claude-progress.json` tracks milestones across sessions. Each session gets its own plan.md.                                                                                  |
-| **Activity logging**                | Every completed task logged to `logs/activity-YYYY-MM-DD.jsonl` — engine used, Codex session IDs, review verdicts, deferred items.                                                   |
+| **Live Todo progress**              | During execution, Orchestra maintains a live TodoWrite list (task + sub-step level: Executor → TDD Audit → Spec Review → Code Quality Review → Logging).                                |
+| **Cross-session progress**          | `status/claude-progress.json` tracks milestones across sessions. Step-level tracking via `current_task` field + human-readable `status/PROGRESS.md`.                                  |
+| **Activity logging**                | Every completed task logged to `logs/activity-YYYY-MM-DD.jsonl` — engine used, Codex session IDs, review verdicts, deferred items, PROCESS_VIOLATION events.                           |
 | **Visual Companion**                | Optional browser UI during brainstorming for mockups, architecture diagrams, and design option cards.                                                                                |
-| **6 new skills**                    | Systematic debugging, evidence-based verification, TDD, Git worktrees, branch finishing (4 options), parallel dispatch.                                                              |
+| **TDD Process Enforcement**         | Mandatory TDD Audit gate, Rationalization Counter-Tables, Red Flags STOP rules, Regression Test Validation Pattern, PROCESS_VIOLATION status for TDD violations.                        |
+| **Session Handoffs**                | `harness:initialize` creates Handoff Documents (`docs/harness/handoffs/`). `/harness:resume` loads them. Context resets on milestone completion or after 5 consecutive tasks.        |
 
 ---
 
@@ -70,13 +71,15 @@ Requires a ChatGPT subscription. After installation, restart Claude Code. If Cod
 
 ## Commands
 
-| Command               | Phase     | Description                                                                     |
-| --------------------- | --------- | ------------------------------------------------------------------------------- |
-| `/harness:brainstorm` | Design    | Structured brainstorming with scope decomposition and optional Visual Companion |
-| `/harness:plan`       | Planning  | Scale-aware implementation planning with milestone tracking                     |
-| `/harness:execute`    | Execution | Orchestra-mode plan execution with dual-engine Decision Points                  |
-| `/harness:resume`     | Resume    | Resume previous session (reads progress + activity log)                         |
-| `/harness:status`     | Read-only | Display current milestone and task progress                                     |
+| Command               | Phase     | Description                                                                                     |
+| --------------------- | --------- | ----------------------------------------------------------------------------------------------- |
+| `/harness:brainstorm` | Design    | Structured brainstorming with scope decomposition and optional Visual Companion                  |
+| `/harness:plan`       | Planning  | Scale-aware implementation planning with milestone tracking (TDD_EVIDENCE per task)              |
+| `/harness:execute`    | Execution | Orchestra-mode plan execution with 4 Decision Points (Executor → TDD Audit → Spec → Quality)    |
+| `/harness:resume`     | Resume    | Resume previous session (loads Handoff Document + progress + activity log)                      |
+| `/harness:status`     | Read-only | Display current milestone and task progress                                                      |
+| `/harness:initialize` | Session   | Package session state into Handoff Document, trigger `/clear` for fresh context                 |
+| `/harness:tdd-audit` | Audit     | Manual TDD Process Audit (normally called automatically by Orchestra between Executor and Spec)  |
 
 All commands route through `harness-entry`, which initializes cross-cutting concerns (`progress-management`, `activity-logging`) for every command path.
 
@@ -87,11 +90,15 @@ All commands route through `harness-entry`, which initializes cross-cutting conc
 Use this to confirm a `/harness:execute` run actually followed the harness (not just plan checkbox edits):
 
 1. **Engine prompts** — For each task, you saw explicit choices (or, when Codex was unavailable, a yes/no to proceed with Claude subagent only) for Executor, Spec Review, and Code Quality Review.
-2. **Dispatch, not inline edits** — Implementation and both reviews appeared as subagent tasks or Codex commands (`/codex:rescue`, `/codex:review`, `/codex:adversarial-review`), not a long chain of main-session edits to application code.
-3. **Verdicts** — Spec stage produced a clear compliant/issues outcome; Code Quality stage produced an explicit **PASS** before the task was called done.
-4. **TodoWrite** — A live todo list was created early and updated across tasks and sub-steps (Executor → Spec → Quality → logging), not only plan markdown checkboxes.
-5. **Activity logging** — After each completed task, `harness:activity-logging` (or equivalent) was invoked with engines and verdicts.
-6. **Iron law** — No task closed on Executor output or Spec alone; closure waited for Code Quality **PASS**.
+2. **TDD Audit** — After Executor reported DONE, a TDD Audit decision point ran before Spec Review. No task proceeded to Spec Review without passing TDD Audit.
+3. **TEST_OUTPUT** — Executor reports included actual command output (`TEST_OUTPUT:`), not summaries. Reports without TEST_OUTPUT were returned for resubmission.
+4. **Dispatch, not inline edits** — Implementation and reviews appeared as subagent tasks or Codex commands, not a long chain of main-session edits to application code.
+5. **Verdicts** — Spec stage produced a clear compliant/issues outcome; Code Quality stage produced an explicit **PASS** before the task was called done.
+6. **PROCESS_VIOLATION** — If TDD violations were detected, tasks were returned to Executor with PROCESS_VIOLATION status, not pushed through.
+7. **TodoWrite** — A live todo list was updated across sub-steps (Executor → TDD Audit → Spec → Quality → Logging), not only plan markdown checkboxes.
+8. **Activity logging** — After each completed task, `harness:activity-logging` was invoked with engines, verdicts, and any PROCESS_VIOLATION events.
+9. **Context Reset** — After milestone completion or every 5 consecutive tasks, `harness:initialize` was invoked to create a Handoff Document and trigger `/clear`.
+10. **Orchestrator Self-Check** — At each Decision Point, Orchestra verified it was not writing code, not doing Executor work, and not reviewing inline.
 
 Strict O/E/R adds turns and latency by design; that is expected when compliance matters.
 
@@ -134,6 +141,21 @@ Strict O/E/R adds turns and latency by design; that is expected when compliance 
 
 **Dispatch Law:** Orchestra must never write code or review code directly. Executor/Reviewer work must be dispatched to subagent or Codex.
 
+### Orchestrator Self-Check
+
+Before every Decision Point, Orchestra runs a mandatory self-check:
+
+```
+ORCHESTRATOR SELF-CHECK:
+□ I am NOT writing or modifying application/source code, tests, or config
+□ I am NOT performing Executor work (implementation)
+□ I am NOT reviewing code inline — all reviews dispatched to subagent or Codex
+□ I am NOT skipping any Decision Point or retry limit
+□ I have received all required reports (including TEST_OUTPUT for Executor DONE)
+
+If ANY box is unchecked → log PROCESS_VIOLATION, stop, correct before continuing.
+```
+
 ### Per-Task Execution Flow
 
 ```
@@ -144,12 +166,23 @@ Strict O/E/R adds turns and latency by design; that is expected when compliance 
 │  ┌──────────────────────────────────────────────────────────────────┐   │
 │  │  Choose engine:                                                  │   │
 │  │  1. Claude subagent  →  executor-prompt.md                       │   │
-│  │  2. Codex rescue     →  /codex:rescue [--model X] [--effort Y]   │   │
+│  │  2. Codex rescue     →  /codex:rescue [--model X] [--effort Y]  │   │
 │  │                                                                  │   │
-│  │  Status: DONE / DONE_WITH_CONCERNS / BLOCKED / NEEDS_CONTEXT     │   │
+│  │  Status: DONE / DONE_WITH_CONCERNS / BLOCKED / NEEDS_CONTEXT /  │   │
+│  │          PROCESS_VIOLATION                                       │   │
 │  │                                                                  │   │
 │  │  If BLOCKED + Codex available:                                   │   │
 │  │    → Codex Rescue Decision Point (offer rescue)                  │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                          │                                              │
+│                          ▼                                              │
+│  Step 1.5: TDD Audit Decision Point  ← NEW (mandatory gate)          │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  harness:tdd-audit                                               │   │
+│  │  File order | RED-first | non-hollow tests | API coverage       │   │
+│  │                                                                  │   │
+│  │  PASS → Step 2       FAIL → PROCESS_VIOLATION → back to Step 1 │   │
+│  │  2 violations → escalate to user                                 │   │
 │  └──────────────────────────────────────────────────────────────────┘   │
 │                          │                                              │
 │                          ▼                                              │
@@ -179,10 +212,12 @@ Strict O/E/R adds turns and latency by design; that is expected when compliance 
 │  └──────────────────────────────────────────────────────────────────┘   │
 │                          │                                              │
 │                          ▼                                              │
-│  Step 4: Post-Task                                                      │
-│    → activity-logging (record engine, Codex session ID)                 │
+│  Step 4: Post-Task                                                     │
+│    → activity-logging (engine, Codex session ID, PROCESS_VIOLATIONs)   │
 │    → update plan checkbox [x]                                           │
 │    → check milestone completion                                         │
+│    → Context Reset: milestone done OR 5 consecutive tasks →            │
+│      harness:initialize (Handoff Document + /clear)                    │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -225,16 +260,24 @@ flowchart TD
     F2 -->|BLOCKED| F3[Codex Rescue Decision Point]
     F3 --> F4["/codex:rescue --background"]
     F4 --> F2b
-    F2 -->|DONE| F2b[Spec Review Decision Point]
-    F2b --> F5{Spec verdict?}
+    F2 -->|DONE| F2b[TDD Audit Decision Point]
+    F2b --> F2c{TDD_AUDIT?}
+    F2c -->|FAIL| F1
+    F2c -->|PASS| F2d[Spec Review Decision Point]
+    F2d --> F5{Spec verdict?}
     F5 -->|SPEC_ISSUES| F1
     F5 -->|SPEC_COMPLIANT| F6[Code Quality Review Decision Point]
     F6 --> F7{Quality verdict?}
     F7 -->|FAIL| F1
     F7 -->|PASS| F8["Log activity + update plan ✓"]
-    F8 --> F9{More tasks?}
-    F9 -->|yes| F
-    F9 -->|no| G["harness-verification: run full test suite"]
+    F8 --> F9{Milestone done?}
+    F9 -->|no| F9b{5 tasks since reset?}
+    F9b -->|no| F10{More tasks?}
+    F9b -->|yes| F11[harness:initialize → Handoff + /clear]
+    F11 --> F
+    F9 -->|yes| F12[harness:initialize → Handoff + /clear]
+    F10 -->|yes| F
+    F10 -->|no| G["harness-verification: run full test suite"]
     G --> H["harness-finishing: 4 integration options"]
     H --> H1{Choose}
     H1 -->|merge| H2[git merge + worktree cleanup]
@@ -254,7 +297,8 @@ flowchart TD
     C -->|no| D["Ask: brainstorm / plan / execute?"]
     C -->|yes| E[Parse + display milestone status]
     E --> F["Read activity log (last 5 entries)"]
-    F --> G[Surface deferred items + re-implementation history]
+    F --> Fb["Load Handoff Document (if exists in docs/harness/handoffs/)"]
+    Fb --> G[Surface deferred items + re-implementation history]
     G --> H{Dependency check passes?}
     H -->|warning| I[Warn about unmet dependency]
     I --> J{Continue anyway?}
@@ -351,10 +395,12 @@ The Orchestra will:
 
 1. Check Codex availability (`/codex:setup`)
 2. At each stage, explicitly ask whether to use Claude subagent or Codex (no silent default)
-3. For each task, present three Decision Points:
+3. For each task, present four Decision Points:
    - **Executor**: Claude subagent or `/codex:rescue`
+   - **TDD Audit** (mandatory gate): verifies RED-first, file order, non-hollow tests, coverage
    - **Spec Review**: Claude subagent or `/codex:review`
    - **Code Quality Review**: Claude subagent, `/codex:adversarial-review`, or both
+4. After milestone completion or every 5 consecutive tasks, invoke `harness:initialize` to create a Handoff Document and trigger `/clear` for a fresh context
 
 ### Resuming a Previous Session
 
@@ -365,6 +411,7 @@ The Orchestra will:
 The assistant will:
 
 - Read `status/claude-progress.json` and show milestone progress
+- Load any Handoff Document from `docs/harness/handoffs/` and display the session state summary
 - Read the activity log and highlight deferred items from the last session
 - Find the first incomplete milestone and either generate its plan or resume execution
 
@@ -374,7 +421,7 @@ The assistant will:
 /harness:status
 ```
 
-Displays current milestone, task completion counts, and recent activity.
+Displays current milestone, task completion counts, current step, and recent activity.
 
 ---
 
@@ -451,19 +498,21 @@ Worktrees are cleaned up automatically after merge or PR.
 
 | Skill                               | Description                                                                                     |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `harness:harness-entry`             | Command routing and resume logic. Reads activity log on resume, checks milestone dependencies.  |
+| `harness:harness-entry`             | Command routing and resume logic. Reads activity log and Handoff Documents on resume.          |
 | `harness:harness-brainstorming`     | Structured brainstorming: scope decomposition, Visual Companion, design spec writing.           |
-| `harness:harness-plan-writing`      | Scale-aware planning. Small: single plan. Large: `claude-progress.json` + per-milestone plan.   |
-| `harness:harness-execution`         | Orchestra: 3 Decision Points per task, engine selection, 3-strike escalation, activity logging. |
+| `harness:harness-plan-writing`      | Scale-aware planning. Small: single plan. Large: `claude-progress.json` + per-milestone plan. TDD_EVIDENCE field required per task. |
+| `harness:harness-execution`         | Orchestra: 4 Decision Points per task (Executor → TDD Audit → Spec Review → Code Quality Review), Orchestrator self-check, context reset triggers, activity logging. |
 | `harness:harness-debugging`         | 4-phase root cause investigation (identify → pattern analysis → hypothesis → fix).              |
 | `harness:harness-verification`      | Evidence-before-completion gate: IDENTIFY → RUN → READ → VERIFY → CLAIM.                        |
-| `harness:harness-tdd`               | TDD reference: Red-Green-Refactor, writing tests that actually test, avoiding hollow mocks.     |
+| `harness:harness-tdd`               | TDD reference: Red-Green-Refactor, Rationalization Counter-Tables, Red Flags STOP rules, Regression Test Validation Pattern. |
 | `harness:harness-worktrees`         | Git worktree setup before implementation, baseline test verification, cleanup.                  |
 | `harness:harness-finishing`         | Branch completion: verify tests → 4 integration options → worktree cleanup → milestone marked.  |
 | `harness:harness-parallel-dispatch` | Independence check, parallel Executor dispatch, conflict resolution before merge.               |
 | `harness:codex-integration`         | Full Codex operations manual: commands, polling, output-to-verdict mapping, token cost table.   |
 | `harness:activity-logging`          | Post-task JSONL logging with executor engine, reviewer engine, Codex session IDs, notes.        |
-| `harness:progress-management`       | CRUD for `status/claude-progress.json` milestone tracking.                                      |
+| `harness:progress-management`       | CRUD for `status/claude-progress.json` milestone tracking. Step-level tracking (`current_task` field) + PROGRESS.md companion file. |
+| `harness:harness-tdd-audit`         | TDD Process Audit: verifies Executor completed tasks with genuine TDD discipline (file order, RED-first, non-hollow tests, coverage). |
+| `harness:harness-initializer`       | Session initializer: packages state into Handoff Document, triggers `/clear` for fresh context. Manual call, milestone completion, or 5-task threshold trigger. |
 
 ---
 
@@ -508,6 +557,7 @@ super-harness/
     executor.md                    # Executor role definition
     spec-reviewer.md               # Spec Reviewer role definition
     code-quality-reviewer.md       # Code Quality Reviewer role definition
+    initializer.md                  # Initializer agent: read-only handoff document generator
   commands/
     brainstorm.md                  # /harness:brainstorm → routes to harness-entry
     plan.md                        # /harness:plan → routes to harness-entry
@@ -538,13 +588,15 @@ super-harness/
       root-cause-tracing.md        # Error pattern reference
     harness-verification/SKILL.md  # Evidence-before-completion gate
     harness-tdd/SKILL.md           # TDD discipline reference
+    harness-tdd-audit/SKILL.md     # TDD Process Audit (mandatory gate between Executor and Spec Review)
+    harness-initializer/SKILL.md   # Session handoff and context reset
     harness-worktrees/SKILL.md     # Git worktree management
     harness-finishing/SKILL.md     # Branch completion (4 options)
     harness-parallel-dispatch/SKILL.md  # Parallel Executor coordination
     activity-logging/SKILL.md      # JSONL activity logging
     codex-integration/SKILL.md     # Codex operations manual
     progress-management/SKILL.md   # claude-progress.json CRUD
-  .claude-plugin/plugin.json       # Plugin manifest (v2.0.2)
+  .claude-plugin/plugin.json       # Plugin manifest (v3.0.0)
   .version-bump.json               # Files to update on version bump
   LICENSE                          # MIT
 ```
@@ -555,12 +607,15 @@ super-harness/
 your-project/
   status/
     claude-progress.json            # Milestone tracker (large projects only)
+    PROGRESS.md                     # Human-readable progress companion (auto-generated)
   docs/
     harness/
       specs/
         YYYY-MM-DD-<topic>-design.md    # Design specs from brainstorming
       plans/
         YYYY-MM-DD-milestone-N.md       # Per-session implementation plans
+      handoffs/
+        YYYY-MM-DD-HH-MM.md             # Session handoff documents (created by harness:initialize)
   logs/
     activity-YYYY-MM-DD.jsonl       # Daily activity log
   .harness/                         # Visual Companion session files
@@ -573,7 +628,7 @@ your-project/
 
 Both plugins can be installed simultaneously without conflict.
 
-| Feature                        | [superpowers](https://github.com/obra/superpowers) | super-harness v2.0.2                                  |
+| Feature                        | [superpowers](https://github.com/obra/superpowers) | super-harness v3.0.0                                  |
 | ------------------------------ | -------------------------------------------------- | ------------------------------------------------------------ |
 | Trigger                        | SessionStart hook                                  | Explicit `/harness:` commands                                |
 | Session scope                  | Single-session                                     | Multi-session milestone tracking                             |

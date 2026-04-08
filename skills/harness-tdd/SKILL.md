@@ -160,7 +160,86 @@ The Executor applies TDD task by task:
 
 ---
 
-## Integration
+## Rationalization Counter-Tables
+
+These are common TDD violations that sound reasonable but are always wrong. When you hear yourself (or an Executor reports) one of these, the counter-argument is mandatory.
+
+| Rationalization (Wrong) | Counter-Argument (Mandatory) |
+| ------------------------ | ----------------------------- |
+| "The test is too simple, I'll add real tests later" | A simple passing test is infinitely better than a complex untested implementation. Write it now. |
+| "This logic is so simple it doesn't need a test" | Every line of code is a potential bug. Simplicity is not a test exemption. |
+| "I'll write the tests after I get the basic implementation working" | This is not TDD. The test must fail FIRST. "Basic implementation" before a failing test is a Process Violation. |
+| "The test would be the same as the implementation, so it's pointless" | If your test is identical to your implementation, the test is wrong. Rewrite the test to verify behavior, not code structure. |
+| "This is just a refactor, not new functionality — tests are already covered" | Refactors require tests to prove you didn't break behavior. Run the full suite. If you didn't have full coverage before, you need it now. |
+| "Writing tests for this would take too long" | Untested code takes longer to debug. The time spent writing tests upfront is always less than the time spent debugging. |
+| "The test is hard to write because of dependencies" | Difficulty writing a test is a design smell. If it's hard to test in isolation, the code needs redesign (dependency injection, interfaces). Fix the design, don't skip the test. |
+| "I ran the code manually and it worked" | Manual testing is not reproducible, not automated, and doesn't survive refactors. It is not a test. |
+| "The test just checks that True == True — it's a placeholder" | A hollow test proves nothing. Either delete it or write a real assertion. |
+| "I'll add edge case tests after the main path works" | Edge cases are where bugs live. Write them before or alongside main path tests, not after. |
+
+---
+
+## Red Flags — STOP and Restart
+
+These scenarios trigger an **immediate halt**. Do not continue. Do not try to fix forward. Restart the task.
+
+| Red Flag | Immediate Action |
+| -------- | ---------------- |
+| Implementation file was created before its test file (git timestamp check) | STOP. Delete implementation. Write test first. Restart from Red phase. |
+| Test was written but immediately passed without running (or always passed before implementation) | STOP. The test is hollow or testing the wrong thing. Rewrite test to actually fail on current behavior. Restart. |
+| Executor reports test passes on first run without any implementation | STOP. Test is not testing the right behavior. It would pass on nothing. Rewrite. Restart. |
+| Test is deliberately designed to pass with the wrong implementation (e.g., `assert True`) | STOP. This is a Process Violation, not a test. Delete and write a real test. Restart. |
+| Implementation was written by copying production code into the test to "make it pass" | STOP. This is not TDD — it's confirmation. Delete implementation. Restart from Red phase. |
+| Test asserts on implementation details (function names, variable names) rather than behavior | STOP. A test that breaks on refactor is a liability. Rewrite to test behavior. Restart. |
+| Executor skipped directly to implementation without a failing test | STOP. This is a HARD-GATE violation. Restart from Red phase. |
+
+**Restart Protocol:**
+1. Report `Status: PROCESS_VIOLATION` to Orchestra
+2. Delete or revert implementation files created in violation
+3. Start fresh: write the failing test
+4. Proceed through Red-Green-Refactor normally
+
+---
+
+## Regression Test Validation Pattern
+
+Before considering a task complete, validate that your tests actually catch regressions. Use this six-step sequence:
+
+### Six-Step Verification Sequence
+
+```
+Write → Pass → Revert → Fail → Restore → Pass
+```
+
+**Step 1: Write** — Write the failing test (Red phase)
+
+**Step 2: Pass** — Write minimal implementation until test passes (Green phase)
+
+**Step 3: Revert** — Temporarily revert or delete the implementation (leave the test)
+
+**Step 4: Fail** — Run the test against the reverted/unimplemented state. It MUST fail.
+
+**Step 5: Restore** — Put the implementation back
+
+**Step 6: Pass** — Run the test again. It MUST pass.
+
+### Why This Sequence?
+
+- Step 3→4 proves the test is not hollow (would fail without implementation)
+- Step 5→6 proves the implementation actually satisfies the test
+
+If Step 4 does NOT fail: the test is hollow. Go back to Step 1 and rewrite.
+
+If Step 6 does NOT pass: the implementation does not satisfy the test. Go back to Step 3 and fix.
+
+### When to Apply
+
+Apply this pattern when:
+- Writing tests for complex logic (boundary conditions, state transitions)
+- Any test that feels "obvious" or "too simple"
+- Any test where you are uncertain whether it would fail without the implementation
+
+### Integration
 
 This skill is referenced by:
 

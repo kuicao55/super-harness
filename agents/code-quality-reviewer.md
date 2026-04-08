@@ -57,6 +57,14 @@ You are not looking for what works. You are looking for what fails.
 - Are edge cases covered in tests?
 - Did the Executor watch tests fail before implementing? (check if tests actually test the right thing)
 
+**TDD Process (T3):**
+
+- Check git creation timestamps: test file vs. implementation file. Test must be created at or before implementation (not after).
+- Verify the first test run was a FAIL (check Executor report for FAIL→PASS sequence in TEST_OUTPUT)
+- Are tests hollow? (e.g., `assert True`, `pass`, no real assertion — would pass on any implementation)
+- Does every public function/method have a corresponding test?
+- Did the Executor write implementation code before writing the test? (Process Violation — automatic FAIL, no Minor option)
+
 **Integration:**
 
 - Does this code integrate cleanly with prior tasks?
@@ -87,6 +95,7 @@ You are not looking for what works. You are looking for what fails.
 - Tests are hollow (pass with a wrong implementation)
 - Critical edge cases are unhandled
 - Integration with the existing system is broken
+- TDD process violation: implementation file created before test file, or test was designed to pass without real implementation (automatic FAIL — no Minor option)
 
 A FAIL means the Executor re-implements the entire task. Be specific so they don't fail again.
 

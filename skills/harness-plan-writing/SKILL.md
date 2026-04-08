@@ -135,6 +135,12 @@ Each task in the plan follows this format exactly:
 - Modify: `exact/path/to/existing.py`
 - Test: `tests/exact/path/to/test_file.py`
 
+**TDD_EVIDENCE:** `<expected evidence format — describe what TEST_OUTPUT should show at each step>`
+
+Example: `TDD_EVIDENCE: Step 2 (RED): pytest tests/test_foo.py::test_bar should FAIL with AssertionError. Step 4 (GREEN): same command should PASS.`
+
+Note: Plan Reviewer will verify this field is present and meaningful. An empty or placeholder TDD_EVIDENCE fails plan review.
+
 - [ ] **Step 1: Write the failing test**
 
 ```<language>

@@ -96,7 +96,30 @@ At all times:
 
 ## Per-Task Execution Flow
 
-Repeat this flow for each task in the plan:
+Repeat this flow for each task in the plan.
+
+### ORCHESTRATOR SELF-CHECK (run before each Decision Point)
+
+Before entering **Executor Decision Point**, **Spec Review Decision Point**, or **Code Quality Review Decision Point**, Orchestra must run this self-check:
+
+```
+ORCHESTRATOR SELF-CHECK:
+
+□ I am NOT writing or modifying application/source code, tests, or config files
+□ I am NOT performing work that should be done by the Executor (implementation)
+□ I am NOT reviewing code inline — all reviews are dispatched to Reviewer subagent or Codex
+□ I am NOT skipping any Decision Point or retry limit
+□ I have received all required reports for this stage (including TEST_OUTPUT for Executor DONE)
+
+If ANY box is unchecked: STOP. Log the violation to activity log as PROCESS_VIOLATION.
+Do not proceed. Correct the violation before continuing.
+```
+
+If self-check fails:
+1. Report PROCESS_VIOLATION in activity log
+2. Stop current task workflow
+3. Correct the violation (e.g., re-dispatch via proper channel instead of doing inline)
+4. Resume from the failed point
 
 ### Step 1: Executor Decision Point
 
@@ -128,10 +151,38 @@ Handle Executor status:
 
 | Status               | Action                                                                                            |
 | -------------------- | ------------------------------------------------------------------------------------------------- |
-| `DONE`               | Proceed to Spec Review Decision Point                                                             |
-| `DONE_WITH_CONCERNS` | Read concerns. If they affect correctness or scope, address before proceeding. Otherwise proceed. |
+| `DONE`               | Proceed to Decision Point 1.5: TDD Audit                                                         |
+| `DONE_WITH_CONCERNS` | Read concerns. If they affect correctness or scope, address before proceeding. Otherwise proceed to Decision Point 1.5: TDD Audit |
 | `NEEDS_CONTEXT`      | Provide missing information and re-dispatch Executor                                              |
 | `BLOCKED`            | Go to Codex Rescue Decision Point (if `codex_available`) or escalate to user                      |
+
+### Decision Point 1.5: TDD Audit
+
+**Announce:** "Running TDD Audit on Executor output before Spec Review."
+
+This decision point is MANDATORY. It cannot be skipped even if the task is "simple" or the Executor is "trusted."
+
+Orchestra calls `harness:tdd-audit` with:
+- Executor's full report (including TEST_OUTPUT)
+- List of files created/modified
+
+**Handling TDD Audit verdict:**
+
+| TDD_AUDIT Result | Action |
+| ---------------- | ------ |
+| `PASS`           | Proceed to Step 2: Spec Review Decision Point |
+| `FAIL`           | Report `Status: PROCESS_VIOLATION` to Executor. Return to Executor for re-implementation. Do not proceed to Spec Review. |
+| `CANNOT_VERIFY`  | Treat as FAIL. Return to Executor for re-implementation with PROCESS_VIOLATION. |
+
+**PROCESS_VIOLATION retry limit:** If the same task receives PROCESS_VIOLATION 2 times, escalate to user:
+
+> "Task N has received PROCESS_VIOLATION 2 times (TDD discipline violations). Options:
+>
+> 1. Review the TDD violation details and retry with Executor
+> 2. Simplify or re-scope this task
+> 3. Skip and flag for later"
+
+After escalation, invoke `harness:activity-logging` with the PROCESS_VIOLATION count.
 
 **If Codex rescue chosen:**
 
@@ -297,8 +348,15 @@ After Code Quality Review PASS:
 3. **If large project** — check if ALL tasks in current milestone are `- [x]`:
    - If yes: prompt user "All tasks in this milestone are complete and Code Quality Review approved. Mark milestone **\<title\>** as passed? (yes/no)"
    - If confirmed: invoke `harness:progress-management` to set `passed: true`
-4. Announce: "Task N complete. Moving to Task N+1."
-5. Mark current task `completed` and next task `in_progress` in TodoWrite
+4. **Context Reset Check — Milestone Complete:**
+   - If this was the last task of the current milestone: invoke `harness:initialize` to create Handoff Document and reset context before proceeding
+5. **Context Reset Check — Consecutive Task Threshold:**
+   - Track the number of consecutive tasks completed without a context reset
+   - After 5 consecutive tasks: prompt user "You've completed 5 consecutive tasks without a context reset. Context may be degrading. Reset now to preserve clarity? (yes/no)"
+   - If yes: invoke `harness:initialize` following its standard flow
+   - Reset counter after each reset
+6. Announce: "Task N complete. Moving to Task N+1."
+7. Mark current task `completed` and next task `in_progress` in TodoWrite
 
 ### Per-Step Todo Updates (Superpowers-style behavior)
 
@@ -307,9 +365,10 @@ Within each task, Orchestra must also maintain sub-step progress in TodoWrite so
 Recommended sub-steps per task:
 
 1. `Task N — Executor dispatched`
-2. `Task N — Spec Review`
-3. `Task N — Code Quality Review`
-4. `Task N — Post-task logging and plan update`
+2. `Task N — TDD Audit`
+3. `Task N — Spec Review`
+4. `Task N — Code Quality Review`
+5. `Task N — Post-task logging and plan update`
 
 As each sub-step starts/completes:
 

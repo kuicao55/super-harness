@@ -76,6 +76,13 @@ Task tool (general-purpose):
     - Are edge cases covered in tests?
     - Could any test pass with a completely wrong implementation?
 
+    **TDD Process (T3):**
+    - Check git creation timestamps: test file vs. implementation file. Test must be created at or before implementation (not after).
+    - Verify the first test run was a FAIL (check Executor report for FAIL→PASS sequence in TEST_OUTPUT)
+    - Are tests hollow? (e.g., `assert True`, `pass`, no real assertion — would pass on any implementation)
+    - Does every public function/method have a corresponding test?
+    - Did the Executor write implementation code before writing the test? (Process Violation — automatic FAIL, no Minor option)
+
     **Integration:**
     - Does this code integrate cleanly with what was built in prior tasks?
     - Are interfaces consistent with what was defined?
@@ -103,6 +110,14 @@ Task tool (general-purpose):
     - Code integrates correctly with existing system
 
     ### FAIL
+
+    Return FAIL when ANY of the following are true:
+    - A security vulnerability exists
+    - A critical performance issue exists
+    - Tests are hollow (pass with a wrong implementation)
+    - Critical edge cases are unhandled
+    - Integration with the existing system is broken
+    - TDD process violation: implementation file created before test file, or test was designed to pass without real implementation (automatic FAIL — no Minor option)
 
     Return FAIL with:
     - Specific issues listed (file:line references for each)

@@ -85,13 +85,21 @@ Fix issues found during self-review before reporting.
 ## Report Format
 
 ```
-Status: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
+Status: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT | PROCESS_VIOLATION
 
 What I implemented:
 [brief description]
 
 Test results:
 [command run and output summary]
+
+TEST_OUTPUT:
+<actual command output — paste the raw output here, not a summary>
+Example:
+TEST_OUTPUT:
+$ pytest tests/test_foo.py::test_bar -v
+FAILED tests/test_foo.py::test_bar
+AssertionError: expected 42, got None
 
 Files changed:
 - path/to/file.py — [what changed]
@@ -106,3 +114,12 @@ Concerns (if DONE_WITH_CONCERNS):
 Blocking reason (if BLOCKED):
 [precise description of what you're stuck on and what you've tried]
 ```
+
+**TEST_OUTPUT Requirement (T8):** Your report is not valid without actual test command output pasted verbatim. Do not summarize. Do not interpret. Paste the raw output. Reports without TEST_OUTPUT are automatically demoted to IN_PROGRESS and returned for resubmission.
+
+**PROCESS_VIOLATION (T4):** Use `Status: PROCESS_VIOLATION` when you discover TDD sequence violations:
+- Implementation code was created before its test file (git timestamp check)
+- A test was designed to pass "conveniently" (e.g., `assert True`, hollow test)
+- Test passed on first run without any implementation
+
+When you report PROCESS_VIOLATION: do not proceed. Orchestra will restart the task from the Red phase. The task is not eligible for Spec Review until PROCESS_VIOLATION is resolved.
