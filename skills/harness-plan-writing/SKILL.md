@@ -9,50 +9,35 @@ Write implementation plans with full TDD discipline. For large projects, manage 
 
 **Announce at start:** "I'm using the harness-plan-writing skill to create the implementation plan."
 
-## Step 1: Scale Assessment
+## Step 1: Project Scope Assessment
 
-Before writing any plan, evaluate the project scope:
+Before writing any plan, assess the project scope:
 
 **Ask yourself (or confirm with the user if unclear):**
 
 - How many distinct features or components need to be built?
 - How many implementation tasks are roughly required?
 - Does this cross multiple modules, services, or layers?
-- Will this realistically require more than one Claude session to complete?
+- Will this realistically require more than one session to complete?
+
+Every plan represents ONE milestone. A project may have multiple milestones.
 
 **Decision:**
 
-| Criteria                                                      | Classification    |
-| ------------------------------------------------------------- | ----------------- |
-| Single feature, <10 tasks, one session                        | **Small project** |
-| Multiple features, 10+ tasks, multiple sessions, cross-module | **Large project** |
+| Criteria                                                     | Classification |
+| ------------------------------------------------------------ | -------------- |
+| Single milestone, one session                                 | One milestone  |
+| Multiple milestones, multiple sessions                       | Multi-milestone |
 
-If unsure, ask the user: "This looks like it could span multiple sessions. Would you like to track this as a multi-milestone project? (yes/no)"
-
----
-
-## Path A: Small Project
-
-Skip `claude-progress.json` entirely.
-
-1. Write a single `plan.md` following the full superpowers-style format (see Task Structure below)
-2. Save to `docs/harness/plans/YYYY-MM-DD-<feature-name>.md`
-3. Offer execution: invoke `harness:harness-execution` when ready
+If unsure, ask the user: "Would you like to split this into multiple milestones? (yes/no)"
 
 ---
 
-## Path B: Large Project — Milestone Management
+## Step 2: Initialize or Update Progress File
 
-### B1: Initialize or Update `status/claude-progress.json`
+**If `status/claude-progress.json` does NOT exist (new project):**
 
-**If the file does NOT exist (new large project):**
-
-1. Decompose the project into milestones. Each milestone should:
-   - Represent approximately one session's worth of work
-   - Deliver working, testable software on its own
-   - Have clearly defined inputs (what must exist before) and outputs (what it delivers)
-
-2. Create `status/claude-progress.json` with the full milestone list:
+1. Create `status/claude-progress.json` with initial structure:
 
 ```json
 {
@@ -75,30 +60,24 @@ Skip `claude-progress.json` entirely.
 }
 ```
 
-Show the milestone list to the user and confirm before proceeding.
+2. Show milestone list to user and confirm before proceeding.
 
-**If the file EXISTS (resuming a large project):**
+**If the file EXISTS (resuming a project):**
 
 1. Read it
 2. Find the first milestone where `passed: false`
-3. Confirm with user: "Next milestone is: **<title>** — <description>. Ready to write the plan for this milestone?"
+3. Confirm with user: "Next milestone is: **<title>** — <description>. Ready to write the plan?"
 
-### B2: Write the Session Plan
+---
+
+## Step 3: Write the Plan
 
 For the current milestone (the first `passed: false` entry):
 
-1. Write a detailed `plan.md` for THIS MILESTONE ONLY using the Task Structure below
+1. Write a detailed `plan.md` for THIS MILESTONE using the Task Structure below
 2. Save to `docs/harness/plans/YYYY-MM-DD-<milestone-id>.md`
 3. Update `claude-progress.json`: set `plan_file` and `session_date` for this milestone
-
-```json
-{
-  "plan_file": "docs/harness/plans/YYYY-MM-DD-milestone-N.md",
-  "session_date": "YYYY-MM-DD"
-}
-```
-
-4. Commit both the plan file and updated `claude-progress.json`
+4. Commit: `git add status/claude-progress.json docs/harness/plans/ && git commit -m "harness: plan for milestone-1"`
 
 ---
 
@@ -214,8 +193,22 @@ After saving the plan and self-review:
 
 > "Plan complete and saved to `docs/harness/plans/<filename>.md`.
 >
-> Spec approved. I suggest we move to execution now. Continue? (yes/no)
+> Ready to move to execution. After confirming, I'll invoke handoff to clear the session context before starting execution.
 >
-> If yes, I'll use the Orchestrator / Executor / Reviewer architecture: each task goes through Executor (implements with TDD) → Spec Reviewer (verifies requirements) → Code Quality Reviewer (adversarial verification). Only Code Quality Review PASS closes a task."
+> Proceed? (yes/no)"
 
-Wait for user confirmation before invoking `harness:harness-execution`.
+Wait for user confirmation.
+
+**If user confirms:**
+
+1. Invoke `harness:harness-handoff` with state=`PLANNING`:
+   - milestone_id: current milestone id
+   - task_id: null (no task started yet)
+   - Next action: `/super-harness:execute --plan docs/harness/plans/<filename>.md`
+
+2. After the session clears and user resumes, route to `harness:harness-execution`
+
+**If user declines:**
+
+- Save the plan and progress file
+- User can resume later with `/super-harness:resume`

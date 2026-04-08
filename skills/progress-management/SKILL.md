@@ -27,6 +27,7 @@ The full schema for `status/claude-progress.json`:
   "created_at": "ISO-8601 timestamp",
   "updated_at": "ISO-8601 timestamp",
   "spec_file": "path to design spec — docs/harness/specs/...",
+  "current_session_handoff": "path/to/latest/handoff.md — set by harness-handoff",
   "milestones": [
     {
       "id": "milestone-N",

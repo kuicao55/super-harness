@@ -5,7 +5,7 @@ description: "Mandatory post-task activity logging for super-harness. Prevents s
 
 # Activity Logging
 
-Record every completed task to a structured JSONL log. This prevents "memory loss" across sessions — when `/harness:resume` is invoked in a new session, the log provides precise context about what happened before.
+Record every completed task to a structured JSONL log. This prevents "memory loss" across sessions — when `/super-harness:resume` is invoked in a new session, the log provides precise context about what happened before.
 
 **Announce at start:** "I'm using the activity-logging skill to record this task."
 
@@ -117,13 +117,13 @@ Each entry is a single JSON object on one line:
 1. Gather the information from the current execution context
 2. Generate or reuse the `session_id` (see Session ID Generation)
 3. Construct the JSON object (single line, no pretty printing)
-4. Append to `logs/activity-YYYY-MM-DD.jsonl`:
+4. **Append** to `logs/activity-YYYY-MM-DD.jsonl` using `echo ... >>`:
 
 ```bash
 echo '{"timestamp":"...","session_id":"...","milestone_id":"...","task_id":"...","task_title":"...","phase":"execution","action":"...","executor_status":"DONE","spec_review_status":"SPEC_COMPLIANT","code_quality_status":"PASS","executor_engine":"claude-subagent","reviewer_engine":"claude-subagent","codex_session_id":null,"codex_model":null,"codex_effort":null,"files_changed":["..."],"notes":null}' >> logs/activity-2026-04-07.jsonl
 ```
 
-Or write the JSON object using a file write tool — append to the file, do not overwrite.
+**⚠️ CRITICAL: Do NOT use the `Write` tool on the log file.** The `Write` tool overwrites the entire file, destroying all previous entries. Always use bash `echo ... >>` to append a single new line.
 
 5. Commit: `git add logs/ && git commit -m "harness: log task-N completion"`
 
@@ -131,7 +131,7 @@ Or write the JSON object using a file write tool — append to the file, do not 
 
 ## How Resume Uses the Log
 
-When `/harness:resume` is invoked and a plan file is found but partially executed, the activity log supplements the plan's checkboxes with richer context. The `harness-entry` skill reads the log to:
+When `/super-harness:resume` is invoked and a plan file is found but partially executed, the activity log supplements the plan's checkboxes with richer context. The `harness-entry` skill reads the log to:
 
 - Understand which tasks had re-iterations (and why)
 - Surface any `notes` about deferred items or concerns

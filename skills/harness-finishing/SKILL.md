@@ -129,7 +129,7 @@ After pushing and creating PR, ask: "Proceed with worktree cleanup? (yes/no)"
 
 ### Option 3: Keep Branch Open
 
-> "Branch `<name>` and worktree `<path>` preserved. Resume with `/harness:resume` when ready."
+> "Branch `<name>` and worktree `<path>` preserved. Resume with `/super-harness:resume` when ready."
 
 Update `claude-progress.json` if applicable (don't mark milestone as passed — it's still open).
 

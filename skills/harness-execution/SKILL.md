@@ -186,9 +186,11 @@ After escalation, invoke `harness:activity-logging` with the PROCESS_VIOLATION c
 
 **If Codex rescue chosen:**
 
+**IMPORTANT: Do NOT use `Bash(codex ...)`**. The `/codex:rescue` command is a **slash command** provided by the codex-plugin-cc plugin — it must be output as text for Claude Code to dispatch internally. Never invoke it as a bash command.
+
 Format and send using `codex-review-prompt.md` rescue template. Then:
 
-1. Execute `/codex:rescue <task description> --background [--model X] [--effort Y]`
+1. Output the slash command directly: `/codex:rescue <task description> --background [--model X] [--effort Y]`
 2. Poll with `/codex:status` until complete
 3. Retrieve with `/codex:result`
 4. Map Codex output to Executor report format (see `codex-review-prompt.md`) and continue as dispatched Executor output
@@ -210,7 +212,7 @@ Only shown when `codex_available = true` and Claude subagent Executor reports BL
 > 3. Skip this task and flag as BLOCKED (not recommended)"
 
 - Option 1: gather context, re-dispatch Claude subagent Executor
-- Option 2: execute rescue using `codex-review-prompt.md` blocked rescue template, treat result as Executor output
+- Option 2: output slash command `/codex:rescue <task> --background [--model X] [--effort Y]` (do NOT use Bash(codex ...))
 - Option 3: log task as BLOCKED in activity log, continue to next task
 
 ### Step 2: Spec Review Decision Point
@@ -247,7 +249,9 @@ Handle Spec Reviewer verdict:
 
 **If Codex review chosen:**
 
-1. Execute `/codex:review --background` (or `--base main --background` if in worktree)
+**IMPORTANT: Do NOT use `Bash(codex ...)`**. The `/codex:review` command is a **slash command** provided by the codex-plugin-cc plugin — it must be output as text for Claude Code to dispatch internally. Never invoke it as a bash command.
+
+1. Output the slash command directly: `/codex:review --background` (or `--base main --background` if in worktree)
 2. Poll with `/codex:status` → retrieve with `/codex:result`
 3. Map output to SPEC_COMPLIANT / SPEC_ISSUES (see `codex-review-prompt.md`)
 4. Continue accordingly
@@ -294,7 +298,9 @@ Handle verdict:
 
 **If Codex adversarial-review chosen:**
 
-1. Execute `/codex:adversarial-review --background [focus text if applicable]`
+**IMPORTANT: Do NOT use `Bash(codex ...)`**. The `/codex:adversarial-review` command is a **slash command** provided by the codex-plugin-cc plugin — it must be output as text for Claude Code to dispatch internally. Never invoke it as a bash command.
+
+1. Output the slash command directly: `/codex:adversarial-review --background [focus text if applicable]`
 2. Poll with `/codex:status` → retrieve with `/codex:result`
 3. Map output to PASS / FAIL (see `codex-review-prompt.md`)
 4. Continue accordingly
@@ -302,7 +308,7 @@ Handle verdict:
 **If both chosen:**
 
 1. Dispatch Claude subagent with `code-quality-reviewer-prompt.md` simultaneously
-2. Execute `/codex:adversarial-review --background`
+2. Output the slash command directly: `/codex:adversarial-review --background`
 3. Collect both results
 4. If either returns FAIL → combined verdict is FAIL
 5. Merge all findings into consolidated report
@@ -345,15 +351,17 @@ After Code Quality Review PASS:
    - `reviewer_engine`: `claude-subagent`, `codex-review`/`codex-adversarial-review`, or `both`
    - `codex_session_id`: session-id from `/codex:result` (if Codex was used)
 2. **Update plan file** — mark task checkbox: `- [ ]` → `- [x]`
-3. **If large project** — check if ALL tasks in current milestone are `- [x]`:
-   - If yes: prompt user "All tasks in this milestone are complete and Code Quality Review approved. Mark milestone **\<title\>** as passed? (yes/no)"
-   - If confirmed: invoke `harness:progress-management` to set `passed: true`
-4. **Context Reset Check — Milestone Complete:**
-   - If this was the last task of the current milestone: invoke `harness:initialize` to create Handoff Document and reset context before proceeding
+3. **Update handoff document** — update the current task pointer in `docs/harness/handoffs/` latest file:
+   - If this is the first task of the milestone and handoff state is PLANNING → update state to IN_PROGRESS, set task_id
+   - If this is the last task of the milestone → update tasks_completed, proceed to step 4
+   - Otherwise → just update task_id to next task
+4. **Check if milestone is complete** — if ALL tasks in current milestone are `- [x]`:
+   - Prompt user "All tasks in this milestone are complete and Code Quality Review approved.
+   - If confirmed: invoke `harness:harness-handoff` with state=`MILESTONE_DONE`
 5. **Context Reset Check — Consecutive Task Threshold:**
    - Track the number of consecutive tasks completed without a context reset
    - After 5 consecutive tasks: prompt user "You've completed 5 consecutive tasks without a context reset. Context may be degrading. Reset now to preserve clarity? (yes/no)"
-   - If yes: invoke `harness:initialize` following its standard flow
+   - If yes: invoke `harness:harness-handoff` with state=`IN_PROGRESS` (preserves current position)
    - Reset counter after each reset
 6. Announce: "Task N complete. Moving to Task N+1."
 7. Mark current task `completed` and next task `in_progress` in TodoWrite
@@ -387,12 +395,14 @@ As each sub-step starts/completes:
    If tests fail: stop and debug using `harness:harness-debugging` before claiming completion.
    Apply `harness:harness-verification` before marking work done.
 
-2. **Invoke `harness:harness-finishing`** — guides branch completion:
+2. **Invoke `harness:harness-handoff`** with state=`ALL_DONE` — this marks the project complete in the handoff document.
+
+3. **Invoke `harness:harness-finishing`** — guides branch completion:
    - Verifies tests pass
    - Presents 4 options: merge locally / push + PR / keep / discard
    - Handles worktree cleanup
 
-3. Announce summary:
+4. Announce summary:
    > "All N tasks complete and Code Quality Review approved.
    >
    > - Tasks completed: N
@@ -432,6 +442,7 @@ As each sub-step starts/completes:
 
 - `harness:activity-logging` — mandatory after every task
 - `harness:progress-management` — to mark milestones passed
+- `harness:harness-handoff` — session boundary handoff (on milestone complete, all done, or context threshold)
 - `harness:harness-debugging` — when full test suite fails after all tasks complete
 - `harness:harness-verification` — before marking work complete
 - `harness:harness-finishing` — after all tasks complete, to handle branch and worktree

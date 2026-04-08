@@ -67,6 +67,10 @@ Working directory: [DIRECTORY]
 
 ## Reviewer Engine (Stage 1): `/codex:review`
 
+**⚠️ CRITICAL: Do NOT use `Bash(codex ...)` to invoke these commands.**
+
+`/codex:review` and `/codex:adversarial-review` are **slash commands** provided by the codex-plugin-cc plugin. They must be output as plain text for Claude Code to dispatch internally — NOT executed as bash commands. The Codex CLI does not have `adversarial-review` or `review` as subcommands.
+
 Use when Orchestrator selects Codex as the Spec Reviewer (instead of Claude subagent).
 This is a read-only standard review — cannot be directed with focus text.
 

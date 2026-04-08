@@ -36,7 +36,7 @@ A Claude Code skill plugin for structured, long-running software development pro
 | **Activity logging**                | Every completed task logged to `logs/activity-YYYY-MM-DD.jsonl` — engine used, Codex session IDs, review verdicts, deferred items, PROCESS_VIOLATION events.                           |
 | **Visual Companion**                | Optional browser UI during brainstorming for mockups, architecture diagrams, and design option cards.                                                                                |
 | **TDD Process Enforcement**         | Mandatory TDD Audit gate, Rationalization Counter-Tables, Red Flags STOP rules, Regression Test Validation Pattern, PROCESS_VIOLATION status for TDD violations.                        |
-| **Session Handoffs**                | `harness:harness-initializer` creates Handoff Documents (`docs/harness/handoffs/`). `/super-harness:resume` loads them. Context resets on milestone completion or after 5 consecutive tasks.        |
+| **Session Handoffs**                | `harness:harness-handoff` creates Handoff Documents (`docs/harness/handoffs/`). `/super-harness:resume` loads them. Context resets on milestone completion or after 5 consecutive tasks.        |
 
 ---
 
@@ -78,7 +78,7 @@ Requires a ChatGPT subscription. After installation, restart Claude Code. If Cod
 | `/super-harness:execute`    | Execution | Orchestrator-mode plan execution with 4 Decision Points (Executor → TDD Audit → Spec → Quality)    |
 | `/super-harness:resume`     | Resume    | Resume previous session (loads Handoff Document + progress + activity log)                      |
 | `/super-harness:status`     | Read-only | Display current milestone and task progress                                                      |
-| `/super-harness:initialize` | Session   | Package session state into Handoff Document, trigger `/clear` for fresh context                 |
+| `/super-harness:handoff`     | Session   | Package session state into Handoff Document, trigger `/clear` for fresh context                 |
 | `/super-harness:tdd-audit` | Audit     | Manual TDD Process Audit (normally called automatically by Orchestrator between Executor and Spec)  |
 
 All commands route through `harness-entry`, which initializes cross-cutting concerns (`progress-management`, `activity-logging`) for every command path.
@@ -97,7 +97,7 @@ Use this to confirm a `/super-harness:execute` run actually followed the harness
 6. **PROCESS_VIOLATION** — If TDD violations were detected, tasks were returned to Executor with PROCESS_VIOLATION status, not pushed through.
 7. **TodoWrite** — A live todo list was updated across sub-steps (Executor → TDD Audit → Spec → Quality → Logging), not only plan markdown checkboxes.
 8. **Activity logging** — After each completed task, `harness:activity-logging` was invoked with engines, verdicts, and any PROCESS_VIOLATION events.
-9. **Context Reset** — After milestone completion or every 5 consecutive tasks, `harness:harness-initializer` was invoked to create a Handoff Document and trigger `/clear`.
+9. **Context Reset** — After milestone completion or every 5 consecutive tasks, `harness:harness-handoff` was invoked to create a Handoff Document and trigger `/clear`.
 10. **Orchestrator Self-Check** — At each Decision Point, Orchestrator verified it was not writing code, not doing Executor work, and not reviewing inline.
 
 Strict O/E/R adds turns and latency by design; that is expected when compliance matters.
@@ -217,7 +217,7 @@ If ANY box is unchecked → log PROCESS_VIOLATION, stop, correct before continui
 │    → update plan checkbox [x]                                           │
 │    → check milestone completion                                         │
 │    → Context Reset: milestone done OR 5 consecutive tasks →            │
-│      harness:harness-initializer (Handoff Document + /clear)                    │
+│      harness:harness-handoff (Handoff Document + /clear)                    │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -273,9 +273,9 @@ flowchart TD
     F8 --> F9{Milestone done?}
     F9 -->|no| F9b{5 tasks since reset?}
     F9b -->|no| F10{More tasks?}
-    F9b -->|yes| F11[harness:harness-initializer → Handoff + /clear]
+    F9b -->|yes| F11[harness:harness-handoff → Handoff + /clear]
     F11 --> F
-    F9 -->|yes| F12[harness:harness-initializer → Handoff + /clear]
+    F9 -->|yes| F12[harness:harness-handoff → Handoff + /clear]
     F10 -->|yes| F
     F10 -->|no| G["harness-verification: run full test suite"]
     G --> H["harness-finishing: 4 integration options"]
@@ -400,7 +400,7 @@ The Orchestrator will:
    - **TDD Audit** (mandatory gate): verifies RED-first, file order, non-hollow tests, coverage
    - **Spec Review**: Claude subagent or `/codex:review`
    - **Code Quality Review**: Claude subagent, `/codex:adversarial-review`, or both
-4. After milestone completion or every 5 consecutive tasks, invoke `harness:harness-initializer` to create a Handoff Document and trigger `/clear` for a fresh context
+4. After milestone completion or every 5 consecutive tasks, invoke `harness:harness-handoff` to create a Handoff Document and trigger `/clear` for a fresh context
 
 ### Resuming a Previous Session
 
@@ -512,7 +512,7 @@ Worktrees are cleaned up automatically after merge or PR.
 | `harness:activity-logging`          | Post-task JSONL logging with executor engine, reviewer engine, Codex session IDs, notes.        |
 | `harness:progress-management`       | CRUD for `status/claude-progress.json` milestone tracking. Step-level tracking (`current_task` field) + PROGRESS.md companion file. |
 | `harness:harness-tdd-audit`         | TDD Process Audit: verifies Executor completed tasks with genuine TDD discipline (file order, RED-first, non-hollow tests, coverage). |
-| `harness:harness-initializer`       | Session initializer: packages state into Handoff Document, triggers `/clear` for fresh context. Manual call, milestone completion, or 5-task threshold trigger. |
+| `harness:harness-handoff`       | Session initializer: packages state into Handoff Document, triggers `/clear` for fresh context. Manual call, milestone completion, or 5-task threshold trigger. |
 
 ---
 
@@ -589,7 +589,7 @@ super-harness/
     harness-verification/SKILL.md  # Evidence-before-completion gate
     harness-tdd/SKILL.md           # TDD discipline reference
     harness-tdd-audit/SKILL.md     # TDD Process Audit (mandatory gate between Executor and Spec Review)
-    harness-initializer/SKILL.md   # Session handoff and context reset
+    harness-handoff/SKILL.md   # Session handoff and context reset
     harness-worktrees/SKILL.md     # Git worktree management
     harness-finishing/SKILL.md     # Branch completion (4 options)
     harness-parallel-dispatch/SKILL.md  # Parallel Executor coordination
@@ -615,7 +615,7 @@ your-project/
       plans/
         YYYY-MM-DD-milestone-N.md       # Per-session implementation plans
       handoffs/
-        YYYY-MM-DD-HH-MM.md             # Session handoff documents (created by harness:harness-initializer)
+        YYYY-MM-DD-HH-MM.md             # Session handoff documents (created by harness:harness-handoff)
   logs/
     activity-YYYY-MM-DD.jsonl       # Daily activity log
   .harness/                         # Visual Companion session files
