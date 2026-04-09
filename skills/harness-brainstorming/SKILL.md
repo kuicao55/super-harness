@@ -19,7 +19,17 @@ You MUST create a task for each of these items and complete them in order:
 
 0. **Load PROJECT.md** — check if `status/PROJECT.md` exists
    - If exists → read it and use as the primary context for project background
-   - If not exists → proceed to Step 1 (original explore behavior, unchanged)
+   - If not exists → detect project state:
+     1. Check for existing source files or package configs:
+        ```bash
+        ls src/ lib/ *.py *.js *.ts *.go *.rs 2>/dev/null | head -20
+        ls package.json pyproject.toml go.mod Cargo.toml pom.xml 2>/dev/null
+        ```
+     2. **If meaningful source files exist** (this is an existing project without PROJECT.md):
+        → Tell the user:
+          > "This appears to be an existing project. Please run `/super-harness:init` first to generate the project context, then run `/clear` and resume with `/super-harness:brainstorm`."
+        → **Do not proceed.** Stop here and wait for user to follow the steps.
+     3. **If no meaningful source files exist** (this is a new project) → proceed to Step 1 (explore behavior unchanged)
 1. **Explore project context** — check existing files, docs, recent git commits
    - Only dig into source files when PROJECT.md doesn't have enough detail for the current topic
    - PROJECT.md is the primary source; Step 1 exploration is a fallback for detail
