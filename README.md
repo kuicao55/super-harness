@@ -77,14 +77,12 @@ Requires a ChatGPT subscription. After installation, restart Claude Code. If Cod
 # 1. Generate project context (one-time per project)
 /super-harness:init
 
-# 2. Brainstorm a new feature or change
+# 2. Brainstorm a new feature
+#    → After you approve the design spec, planning runs automatically
 /super-harness:brainstorm
 
-# 3. Create implementation plan
-/super-harness:plan
-
-# 4. Execute the plan (Orchestrator runs Executor → TDD Audit → Spec Review → Code Quality Review)
-#    Engine preferences are asked ONCE at start, then execution runs hands-off.
+# 3. Plan is complete? Start execution
+#    → Engine preferences asked ONCE at start, then runs hands-off
 /super-harness:execute
 ```
 
@@ -95,13 +93,12 @@ Requires a ChatGPT subscription. After installation, restart Claude Code. If Cod
 /super-harness:resume
 ```
 
-### Other useful commands
+### Other commands
 
 | Command | Description |
 |---------|-------------|
+| `/super-harness:init` | Generate project context (run once per project) |
 | `/super-harness:status` | Check current milestone and task progress |
-| `/super-harness:handoff` | Manually trigger session handoff (packages state + /clear) |
-| `/super-harness:tdd-audit` | Manually audit a completed task's TDD discipline |
 
 ### What happens during execution?
 
