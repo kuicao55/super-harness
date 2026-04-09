@@ -90,11 +90,24 @@ Save to: `docs/harness/handoffs/YYYY-MM-DD-HH-MM.md`
 
 ## Step 4: Update progress-management
 
-After writing the handoff, update `status/claude-progress.json`:
-- Set `current_session_handoff` to the path of the new handoff document
-- If state is `MILESTONE_DONE`: set the milestone's `passed: true`
-- If state is `ALL_DONE`: no additional changes needed
-- If state is `IN_PROGRESS`: update `current_task` fields
+**Use the `harness-milestone` script for all milestone updates.**
+
+1. Set the current session handoff path:
+   ```bash
+   python3 -c "
+   import json
+   with open('status/claude-progress.json') as f:
+       d = json.load(f)
+   d['current_session_handoff'] = 'docs/harness/handoffs/YYYY-MM-DD-HH-MM.md'
+   with open('status/claude-progress.json', 'w') as f:
+       json.dump(d, f, indent=2)
+       f.write('\n')
+   "
+   ```
+
+2. If state is `MILESTONE_DONE`: run `harness-milestone complete <milestone-id>`
+
+3. If state is `ALL_DONE`: no additional changes needed
 
 ## Step 5: Confirm with User
 

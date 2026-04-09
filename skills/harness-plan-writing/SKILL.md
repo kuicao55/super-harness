@@ -35,38 +35,33 @@ If unsure, ask the user: "Would you like to split this into multiple milestones?
 
 ## Step 2: Initialize or Update Progress File
 
+**Use the `harness-milestone` script for all milestone operations.** Do NOT manually edit `status/claude-progress.json`.
+
 **If `status/claude-progress.json` does NOT exist (new project):**
 
-1. Create `status/claude-progress.json` with initial structure:
+1. Run: `harness-milestone init "<project-name>" --spec docs/harness/specs/YYYY-MM-DD-<topic>-design.md`
 
-```json
-{
-  "project": "<project-name>",
-  "created_at": "<ISO-8601-timestamp>",
-  "updated_at": "<ISO-8601-timestamp>",
-  "spec_file": "docs/harness/specs/YYYY-MM-DD-<topic>-design.md",
-  "milestones": [
-    {
-      "id": "milestone-1",
-      "title": "<short title>",
-      "description": "<what this milestone delivers>",
-      "depends_on": [],
-      "passed": false,
-      "plan_file": null,
-      "session_date": null,
-      "notes": null
-    }
-  ]
-}
-```
+   Example: `harness-milestone init "PocketMon" --spec docs/harness/specs/2026-04-09-pocketmon-design.md`
 
-2. Show milestone list to user and confirm before proceeding.
+2. Show milestone list to confirm:
+   ```
+   harness-milestone list
+   ```
+
+3. Confirm with user before proceeding.
 
 **If the file EXISTS (resuming a project):**
 
-1. Read it
-2. Find the first milestone where `passed: false`
-3. Confirm with user: "Next milestone is: **<title>** — <description>. Ready to write the plan?"
+1. Check next milestone: `harness-milestone next`
+2. Display the next milestone details to user.
+3. Confirm: "Ready to write the plan for this milestone?"
+
+**If user wants to add a new milestone to an existing project:**
+
+1. Run: `harness-milestone add "<milestone title>" --spec <spec-path> [--depends <milestone-id>]`
+2. The script automatically calculates the next milestone ID (e.g., milestone-3 after milestone-2).
+
+**Handoff note:** After plan is complete and user confirms execution, invoke `harness:harness-handoff` with state=`PLANNING`. The handoff document will reference this milestone's plan file.
 
 ---
 
@@ -76,8 +71,12 @@ For the current milestone (the first `passed: false` entry):
 
 1. Write a detailed `plan.md` for THIS MILESTONE using the Task Structure below
 2. Save to `docs/harness/plans/YYYY-MM-DD-<milestone-id>.md`
-3. Update `claude-progress.json`: set `plan_file` and `session_date` for this milestone
-4. Commit: `git add status/claude-progress.json docs/harness/plans/ && git commit -m "harness: plan for milestone-1"`
+3. Link the plan to the milestone:
+   ```
+   harness-milestone set-plan <milestone-id> docs/harness/plans/YYYY-MM-DD-<milestone-id>.md
+   ```
+   Example: `harness-milestone set-plan milestone-1 docs/harness/plans/2026-04-09-milestone-1.md`
+4. Commit: `git add docs/harness/plans/ && git commit -m "harness: plan for milestone-1"`
 
 ---
 

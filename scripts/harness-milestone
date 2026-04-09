@@ -1,0 +1,369 @@
+#!/usr/bin/env bash
+# Milestone management script for super-harness
+# Works on the project repository (must be run from project root)
+#
+# Usage:
+#   harness-milestone init <project-name> [--spec <spec-path>]
+#   harness-milestone list
+#   harness-milestone add <title> [--spec <spec-path>] [--depends <milestone-id>]
+#   harness-milestone next
+#   harness-milestone status
+#   harness-milestone complete <milestone-id>
+#   harness-milestone set-plan <milestone-id> <plan-file-path>
+#
+# Flags:
+#   --project-dir <path>   Use specified directory instead of current directory
+
+set -e
+
+PROGRESS_FILE="status/claude-progress.json"
+COMMAND="${1:-}"
+
+show_help() {
+    cat <<'EOF'
+harness-milestone — Milestone management for super-harness
+
+Usage:
+  harness-milestone init <project-name> [--spec <spec-path>]
+  harness-milestone list
+  harness-milestone add <title> [--spec <spec-path>] [--depends <milestone-id>]
+  harness-milestone next
+  harness-milestone status
+  harness-milestone complete <milestone-id>
+  harness-milestone set-plan <milestone-id> <plan-file-path>
+
+Commands:
+  init        Initialize a new progress file (for new projects)
+  list        List all milestones with their status
+  add         Add a new milestone and return its ID
+  next        Show the next incomplete milestone
+  status      Show project-level status
+  complete    Mark a milestone as passed
+  set-plan    Link a plan file to a milestone
+
+Options:
+  --spec <path>           Path to the spec file for this milestone
+  --depends <milestone-id> Milestone ID this depends on
+  --project-dir <path>     Use specified directory
+
+Examples:
+  harness-milestone init "My Project" --spec docs/harness/specs/design.md
+  harness-milestone list
+  harness-milestone add "User authentication" --spec docs/harness/specs/auth.md
+  harness-milestone next
+  harness-milestone complete milestone-2
+  harness-milestone set-plan milestone-1 docs/harness/plans/2026-04-09-milestone-1.md
+EOF
+}
+
+# Find the next milestone ID by finding the highest existing milestone-N
+get_next_id() {
+    python3 <<'PYEOF'
+import json, re, sys
+
+with open('status/claude-progress.json') as f:
+    d = json.load(f)
+
+ids = []
+for m in d.get('milestones', []):
+    match = re.match(r'milestone-(\d+)', m['id'])
+    if match:
+        ids.append(int(match.group(1)))
+
+next_num = max(ids) + 1 if ids else 1
+print(f'milestone-{next_num}')
+PYEOF
+}
+
+# List all milestones
+cmd_list() {
+    if [[ ! -f "$PROGRESS_FILE" ]]; then
+        echo "No progress file found at ${PROGRESS_FILE}"
+        exit 1
+    fi
+
+    python3 <<'PYEOF'
+import json, sys
+
+with open('status/claude-progress.json') as f:
+    d = json.load(f)
+
+print(f"Project: {d.get('project', 'unknown')}")
+print(f"Created: {d.get('created_at', 'unknown')}")
+print(f"Updated: {d.get('updated_at', 'unknown')}")
+print()
+print('Milestones:')
+print('-' * 80)
+
+for m in d.get('milestones', []):
+    passed = 'PASSED' if m.get('passed') else 'pending'
+    dep = f" (depends on: {', '.join(m.get('depends_on', []))})" if m.get('depends_on') else ''
+    plan = m.get('plan_file') or '(no plan)'
+    spec = m.get('spec_file') or ''
+    print(f"  [{passed}] {m['id']}: {m['title']}{dep}")
+    print(f"      Plan: {plan}")
+    if spec:
+        print(f"      Spec: {spec}")
+    if m.get('notes'):
+        print(f"      Notes: {m['notes']}")
+    print()
+
+print(f"current_session_handoff: {d.get('current_session_handoff') or '(none)'}")
+PYEOF
+}
+
+# Show next incomplete milestone
+cmd_next() {
+    if [[ ! -f "$PROGRESS_FILE" ]]; then
+        echo "No progress file found at ${PROGRESS_FILE}"
+        exit 1
+    fi
+
+    python3 <<'PYEOF'
+import json, sys
+
+with open('status/claude-progress.json') as f:
+    d = json.load(f)
+
+for m in d.get('milestones', []):
+    if not m.get('passed'):
+        print(f"id: {m['id']}")
+        print(f"title: {m['title']}")
+        print(f"description: {m.get('description', '')}")
+        print(f"depends_on: {','.join(m.get('depends_on', []))}")
+        print(f"spec_file: {m.get('spec_file') or ''}")
+        print(f"plan_file: {m.get('plan_file') or ''}")
+        print(f"session_date: {m.get('session_date') or ''}")
+        break
+else:
+    print('All milestones are complete!')
+PYEOF
+}
+
+# Show project status
+cmd_status() {
+    if [[ ! -f "$PROGRESS_FILE" ]]; then
+        echo "No progress file found at ${PROGRESS_FILE}"
+        exit 1
+    fi
+
+    python3 <<'PYEOF'
+import json, sys, os
+
+with open('status/claude-progress.json') as f:
+    d = json.load(f)
+
+ms = d.get('milestones', [])
+total = len(ms)
+done = sum(1 for m in ms if m.get('passed'))
+in_progress = next((m for m in ms if not m.get('passed')), None)
+
+print(f"Project: {d.get('project', 'unknown')}")
+print(f"Milestones: {done}/{total} complete")
+
+if in_progress:
+    print(f"Current: {in_progress['id']} - {in_progress['title']}")
+else:
+    print('All milestones complete!')
+
+handoff_dir = 'docs/harness/handoffs'
+if os.path.isdir(handoff_dir):
+    files = sorted([f for f in os.listdir(handoff_dir) if f.endswith('.md')])
+    if files:
+        print(f'Latest handoff: {handoff_dir}/{files[-1]}')
+PYEOF
+}
+
+# Initialize new progress file
+cmd_init() {
+    local project_name="$1"
+    local spec_path="docs/harness/specs/"
+    local today
+    today=$(date +%Y-%m-%dT%H:%M:%SZ)
+
+    shift
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --spec) spec_path="$2"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+
+    if [[ -f "$PROGRESS_FILE" ]]; then
+        echo "Error: Progress file already exists at ${PROGRESS_FILE}"
+        exit 1
+    fi
+
+    mkdir -p "$(dirname "$PROGRESS_FILE")"
+
+    python3 <<PYEOF
+import json, datetime
+
+d = {
+    'project': '${project_name}',
+    'created_at': '${today}',
+    'updated_at': '${today}',
+    'spec_file': '${spec_path}',
+    'current_session_handoff': None,
+    'milestones': []
+}
+
+with open('${PROGRESS_FILE}', 'w') as f:
+    json.dump(d, f, indent=2)
+    f.write('\n')
+PYEOF
+
+    echo "Initialized: ${PROGRESS_FILE}"
+    echo "Project: ${project_name}"
+}
+
+# Add a new milestone
+cmd_add() {
+    local title="$1"
+    local spec_path=""
+    local depends_on=""
+
+    shift
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --spec) spec_path="$2"; shift 2 ;;
+            --depends) depends_on="$2"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+
+    if [[ ! -f "$PROGRESS_FILE" ]]; then
+        echo "Error: No progress file. Run 'harness-milestone init' first."
+        exit 1
+    fi
+
+    local new_id
+    new_id=$(get_next_id)
+
+    local today
+    today=$(date +%Y-%m-%dT%H:%M:%SZ)
+
+    local depends_array="[]"
+    if [[ -n "$depends_on" ]]; then
+        depends_array="[\"${depends_on}\"]"
+    fi
+
+    python3 <<PYEOF
+import json, datetime
+
+with open('${PROGRESS_FILE}') as f:
+    d = json.load(f)
+
+new_milestone = {
+    'id': '${new_id}',
+    'title': '${title}',
+    'description': '${title}',
+    'depends_on': ${depends_array},
+    'passed': False,
+    'spec_file': '${spec_path}',
+    'plan_file': None,
+    'session_date': None,
+    'notes': None
+}
+
+d['milestones'].append(new_milestone)
+d['updated_at'] = '${today}'
+
+with open('${PROGRESS_FILE}', 'w') as f:
+    json.dump(d, f, indent=2)
+    f.write('\n')
+PYEOF
+
+    echo "${new_id}"
+}
+
+# Mark a milestone as complete
+cmd_complete() {
+    local milestone_id="$1"
+    local today
+    today=$(date +%Y-%m-%dT%H:%M:%SZ)
+
+    if [[ ! -f "$PROGRESS_FILE" ]]; then
+        echo "No progress file found."
+        exit 1
+    fi
+
+    python3 <<PYEOF
+import json, datetime
+
+with open('${PROGRESS_FILE}') as f:
+    d = json.load(f)
+
+for m in d.get('milestones', []):
+    if m['id'] == '${milestone_id}':
+        m['passed'] = True
+        m['notes'] = 'Completed ' + '${today}'
+        break
+else:
+    print(f"Error: Milestone '${milestone_id}' not found.")
+    exit(1)
+
+d['updated_at'] = '${today}'
+
+with open('${PROGRESS_FILE}', 'w') as f:
+    json.dump(d, f, indent=2)
+    f.write('\n')
+PYEOF
+
+    echo "Completed: ${milestone_id}"
+}
+
+# Link a plan file to a milestone
+cmd_set_plan() {
+    local milestone_id="$1"
+    local plan_file="$2"
+    local today
+    today=$(date +%Y-%m-%dT%H:%M:%SZ)
+
+    if [[ ! -f "$PROGRESS_FILE" ]]; then
+        echo "No progress file found."
+        exit 1
+    fi
+
+    if [[ -z "$milestone_id" ]] || [[ -z "$plan_file" ]]; then
+        echo "Usage: harness-milestone set-plan <milestone-id> <plan-file-path>"
+        exit 1
+    fi
+
+    python3 <<PYEOF
+import json, datetime
+
+with open('${PROGRESS_FILE}') as f:
+    d = json.load(f)
+
+for m in d.get('milestones', []):
+    if m['id'] == '${milestone_id}':
+        m['plan_file'] = '${plan_file}'
+        m['session_date'] = '${today}'
+        break
+else:
+    print(f"Error: Milestone '${milestone_id}' not found.")
+    exit(1)
+
+d['updated_at'] = '${today}'
+
+with open('${PROGRESS_FILE}', 'w') as f:
+    json.dump(d, f, indent=2)
+    f.write('\n')
+PYEOF
+
+    echo "Linked: ${milestone_id} -> ${plan_file}"
+}
+
+# Main
+case "$COMMAND" in
+    init)       cmd_init "${@:2}" ;;
+    list)       cmd_list ;;
+    add)        cmd_add "${@:2}" ;;
+    next)       cmd_next ;;
+    status)     cmd_status ;;
+    complete)   cmd_complete "${@:2}" ;;
+    set-plan)   cmd_set_plan "${@:2}" ;;
+    help|--help|-h) show_help ;;
+    *)          show_help; exit 1 ;;
+esac
