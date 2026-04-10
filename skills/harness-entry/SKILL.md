@@ -51,6 +51,10 @@ Before routing, establish these two skills as active cross-cutting concerns for 
 - `progress-management` — will be invoked whenever `claude-progress.json` must be read or written
 - `activity-logging` — will be invoked after every completed task
 
+## Chain-Call Shortcut
+
+When one skill directly invokes another (e.g., brainstorming → plan-writing, plan-writing → handoff), **skip harness-entry** and route directly to the target skill. harness-entry only runs on the *initial* user command (`/super-harness:brainstorm`, `/super-harness:plan`, etc.). Do not re-run pre-flight or announce routing for chain calls.
+
 ## Routing Logic
 
 ### If invoked via `/super-harness:brainstorm`
@@ -190,28 +194,22 @@ Inject all relevant context into the Orchestrator's initial context.
 
 **If state is PLANNING:**
 > "Plan was written in the previous session. Ready to start execution."
-Route to `harness-execution` with the plan.
+Route to `harness-execution` with the plan, **with `setup_required=true`** (must run Engine Pre-Configuration before any task).
 
 **If state is IN_PROGRESS:**
 > "Resuming from Task \<N\>. Ready to continue execution."
-Route to `harness-execution` with the plan and current task context.
+Route to `harness-execution` with the plan and current task context, **with `setup_required=true`** (must run Engine Pre-Configuration before any task).
 
 **If state is MILESTONE_DONE:**
-> "Milestone complete! What's next?
->
-> 1. Start the next milestone (create plan)
-> 2. Run `/super-harness:handoff` to finalize project
-> 3. Something else"
-
-Wait for user choice.
+> "Milestone complete! Starting next milestone."
+The next milestone's plan was already written during the planning session. Route directly to `harness-execution` with the next milestone's plan, **with `setup_required=true`** (must run Engine Pre-Configuration before any task).
 
 **If state is ALL_DONE:**
 > "All milestones are complete. Project is finished!
 >
-> 1. Run `/super-harness:finish` to complete the project
-> 2. Start a new project"
+> Proceeding to `harness-finishing` to finalize the project."
 
-Wait for user choice.
+Route to `harness-finishing`.
 
 ## Key Rules
 

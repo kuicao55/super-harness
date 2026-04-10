@@ -9,41 +9,14 @@ Execute a plan task by task. Orchestrator coordinates: Executor implements (TDD)
 
 **Announce at start:** "I'm using the harness-execution skill with Orchestrator / Executor / Reviewer architecture."
 
+## Setup — MUST complete BEFORE any task execution
+
 <HARD-GATE>
-Until Code Quality Review returns an explicit PASS for the current task, Orchestrator MUST NOT:
+The following Setup steps MUST be completed before dispatching any Executor. Do NOT skip to task execution without completing all required steps.
 
-- Edit application/source code, tests, or config (no `Update`, `Write`, `StrReplace`, or equivalent on product files)
-- Perform Spec Review or Code Quality Review inline (no "I'll review the code myself")
-- Skip Executor/Reviewer dispatch because the project is "small" or "simple"
-- Claim a task or milestone complete without both review stages and explicit verdicts
-
-Orchestrator ONLY: load plan, ask user for engine choice each stage, dispatch Task/Subagent or Codex, merge results, update TodoWrite, update plan checkboxes after PASS, invoke activity-logging.
-
-Violating this gate invalidates the run; stop and restart the task with proper dispatch.
+- **First execution (from `/super-harness:execute`):** Complete Step 1 → Step 2 → Step 3 → Step 4 in order.
+- **Resume execution (from `/super-harness:resume`, `setup_required=true`):** Skip Step 1 (plan already loaded by resume flow), complete Step 2 → Step 3 → Step 4. Engine configuration is per-session — it MUST be re-collected after every `/clear`.
 </HARD-GATE>
-
-## The Iron Law
-
-```
-NO TASK IS COMPLETE UNTIL CODE QUALITY REVIEW GIVES AN EXPLICIT PASS.
-```
-
-Executor self-review does not count. Spec Review alone does not count. Only the Code Quality Reviewer's explicit PASS closes a task.
-
-**Separation mandate:** The Executor writes code. The Reviewers review it. These are never the same agent instance.
-
-**Dispatch mandate (hard requirement):**
-
-```
-ORCHESTRATOR MUST NEVER IMPLEMENT OR REVIEW CODE DIRECTLY.
-EXECUTOR AND REVIEWER WORK MUST ALWAYS BE DISPATCHED TO A SUBAGENT OR CODEX.
-```
-
-If Orchestrator edits code directly (instead of dispatching), that task run is invalid and must be re-run with proper dispatch.
-
----
-
-## Setup
 
 ### Step 1: Load the Plan
 
@@ -72,7 +45,7 @@ Run `/codex:setup` to check if Codex is installed and authenticated.
 - If Codex is missing but npm is available → inform user: "Codex is not installed. `/codex:setup` can install it. Would you like to install now?"
 - If unavailable → set `codex_available = false`
 
-### Step 3: Engine Pre-Configuration (One-time per execution session)
+### Step 3: Engine Pre-Configuration (Per-session — MUST re-collect after every /clear)
 
 **Announce:** "Collecting engine preferences for this execution session..."
 
@@ -124,6 +97,40 @@ At all times:
 - Completed tasks are immediately marked `completed`
 - Blocked/deferred tasks are marked `pending` (or `cancelled` if explicitly dropped)
 - The visible todo list is the source of truth for in-session progress
+
+---
+
+## The Iron Law
+
+```
+NO TASK IS COMPLETE UNTIL CODE QUALITY REVIEW GIVES AN EXPLICIT PASS.
+```
+
+Executor self-review does not count. Spec Review alone does not count. Only the Code Quality Reviewer's explicit PASS closes a task.
+
+**Separation mandate:** The Executor writes code. The Reviewers review it. These are never the same agent instance.
+
+**Dispatch mandate (hard requirement):**
+
+```
+ORCHESTRATOR MUST NEVER IMPLEMENT OR REVIEW CODE DIRECTLY.
+EXECUTOR AND REVIEWER WORK MUST ALWAYS BE DISPATCHED TO A SUBAGENT OR CODEX.
+```
+
+If Orchestrator edits code directly (instead of dispatching), that task run is invalid and must be re-run with proper dispatch.
+
+<HARD-GATE>
+Until Code Quality Review returns an explicit PASS for the current task, Orchestrator MUST NOT:
+
+- Edit application/source code, tests, or config (no `Update`, `Write`, `StrReplace`, or equivalent on product files)
+- Perform Spec Review or Code Quality Review inline (no "I'll review the code myself")
+- Skip Executor/Reviewer dispatch because the project is "small" or "simple"
+- Claim a task or milestone complete without both review stages and explicit verdicts
+
+Orchestrator ONLY: load plan, dispatch Task/Subagent or Codex, merge results, update TodoWrite, update plan checkboxes after PASS, invoke activity-logging.
+
+Violating this gate invalidates the run; stop and restart the task with proper dispatch.
+</HARD-GATE>
 
 ---
 
@@ -331,18 +338,13 @@ After Code Quality Review PASS:
      --decisions "<any key decisions>" \
      --next-action "/super-harness:resume"
    ```
-   - If this is the first task of the milestone and previous handoff state was PLANNING → use state `IN_PROGRESS`
-   - If this is the last task of the milestone → use state `MILESTONE_DONE` instead, proceed to step 4
 4. **Check if milestone is complete** — if ALL tasks in current milestone are `- [x]`:
-   - Prompt user "All tasks in this milestone are complete and Code Quality Review approved.
-   - If confirmed: invoke `harness-handoff` with state=`MILESTONE_DONE`
-5. **Context Reset Check — Consecutive Task Threshold:**
-   - Track the number of consecutive tasks completed without a context reset
-   - After 5 consecutive tasks: prompt user "You've completed 5 consecutive tasks without a context reset. Context may be degrading. Reset now to preserve clarity? (yes/no)"
-   - If yes: invoke `harness-handoff` with state=`IN_PROGRESS` (preserves current position)
-   - Reset counter after each reset
-6. Announce: "Task N complete. Moving to Task N+1."
-7. Mark current task `completed` and next task `in_progress` in TodoWrite
+   - Invoke `harness-handoff` with state=`MILESTONE_DONE` + /clear
+   - Session ends. User runs `/super-harness:resume` to start next milestone.
+   - Do NOT continue to next task in the same session.
+5. If milestone is NOT complete:
+   - Announce: "Task N complete. Moving to Task N+1."
+   - Mark current task `completed` and next task `in_progress` in TodoWrite
 
 ### Per-Step Todo Updates (Superpowers-style behavior)
 
@@ -373,9 +375,9 @@ As each sub-step starts/completes:
    If tests fail: stop and debug using `harness-debugging` before claiming completion.
    Apply `harness-verification` before marking work done.
 
-2. **Invoke `harness-handoff`** with state=`ALL_DONE` — this marks the project complete in the handoff document.
+2. **Invoke `harness-handoff`** with state=`ALL_DONE` — this writes the handoff document and creates/updates PROJECT.md. It does NOT /clear for ALL_DONE.
 
-3. **Invoke `harness-finishing`** — guides branch completion:
+3. **Invoke `harness-finishing`** — in the SAME session (no /clear between handoff and finishing). Finishing handles:
    - Verifies tests pass
    - Presents 4 options: merge locally / push + PR / keep / discard
    - Handles worktree cleanup

@@ -136,7 +136,7 @@ Generate a complete PROJECT.md from scratch:
 ## Project Identity
 
 **Project Name:** <name>
-**Harness Version:** 3.2.4
+**Harness Version:** 3.3.0
 **Generated:** <YYYY-MM-DD>
 **Last Updated:** <YYYY-MM-DD>
 
@@ -196,6 +196,8 @@ Commit: `git add status/PROJECT.md && git commit -m "harness: update project con
 
 Show the handoff document summary and ask:
 
+**If state is PLANNING, IN_PROGRESS, or MILESTONE_DONE:**
+
 > "Handoff prepared:
 > - State: **\<state\>**
 > - Milestone: **\<id\>**
@@ -206,9 +208,18 @@ Show the handoff document summary and ask:
 - **yes** → proceed to Step 5
 - **no** → abort. Do not write the handoff document. Continue the session.
 
+**If state is ALL_DONE:**
+
+> "All milestones complete! Handoff document prepared.
+> - State: **ALL_DONE**
+>
+> Proceeding to harness-finishing in this session (no context reset needed)."
+
+Do NOT /clear. Proceed directly to `harness-finishing` after writing the handoff document.
+
 ## Step 5: Reset Context
 
-After user confirmation:
+Only executed when state is PLANNING, IN_PROGRESS, or MILESTONE_DONE and user confirmed.
 
 1. Announce: "Clearing session context for fresh resume..."
 2. Execute `/clear` via Claude Code's built-in command

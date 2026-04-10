@@ -5,6 +5,10 @@
       "pattern": "\"version\": \"${VERSION}\""
     },
     {
+      "path": ".claude-plugin/marketplace.json",
+      "pattern": "\"version\": \"${VERSION}\""
+    },
+    {
       "path": "hooks/session-start",
       "pattern": "v${VERSION}"
     },

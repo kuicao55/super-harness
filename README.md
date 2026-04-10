@@ -1,4 +1,4 @@
-# super-harness v3.2.5
+# super-harness v3.3.0
 
 > **Built on [obra/superpowers](https://github.com/obra/superpowers)** — the agentic skills framework and software development methodology by Jesse Vincent. This project extends superpowers with cross-session milestone tracking, mandatory activity logging, an Orchestrator / Executor / Reviewer agent architecture, and dual-engine Codex integration. If you haven't seen superpowers, start there first.
 
@@ -126,7 +126,7 @@ All commands route through `harness-entry`, which initializes cross-cutting conc
 
 Use this to confirm a `/super-harness:execute` run actually followed the harness (not just plan checkbox edits):
 
-1. **Engine prompts** — For each task, you saw explicit choices (or, when Codex was unavailable, a yes/no to proceed with Claude subagent only) for Executor, Spec Review, and Code Quality Review.
+1. **Engine configuration** — At session start, engine preferences were collected once (Executor, Spec Review, Code Quality Review engines, Codex fallback behavior). These apply to all tasks in the session.
 2. **TDD Audit** — After Executor reported DONE, a TDD Audit decision point ran before Spec Review. No task proceeded to Spec Review without passing TDD Audit.
 3. **TEST_OUTPUT** — Executor reports included actual command output (`TEST_OUTPUT:`), not summaries. Reports without TEST_OUTPUT were returned for resubmission.
 4. **Dispatch, not inline edits** — Implementation and reviews appeared as subagent tasks or Codex commands, not a long chain of main-session edits to application code.
@@ -134,7 +134,7 @@ Use this to confirm a `/super-harness:execute` run actually followed the harness
 6. **PROCESS_VIOLATION** — If TDD violations were detected, tasks were returned to Executor with PROCESS_VIOLATION status, not pushed through.
 7. **TodoWrite** — A live todo list was updated across sub-steps (Executor → TDD Audit → Spec → Quality → Logging), not only plan markdown checkboxes.
 8. **Activity logging** — After each completed task, `harness:activity-logging` was invoked with engines, verdicts, and any PROCESS_VIOLATION events.
-9. **Context Reset** — After milestone completion or every 5 consecutive tasks, `harness-handoff` was invoked to create a Handoff Document and trigger `/clear`.
+9. **Context Reset** — After milestone completion, `harness-handoff` was invoked to create a Handoff Document and trigger `/clear`. Each milestone = one session.
 10. **Orchestrator Self-Check** — At each Decision Point, Orchestrator verified it was not writing code, not doing Executor work, and not reviewing inline.
 
 Strict O/E/R adds turns and latency by design; that is expected when compliance matters.

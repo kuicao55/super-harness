@@ -9,34 +9,57 @@ Write implementation plans with full TDD discipline. All projects use milestone 
 
 **Announce at start:** "I'm using the harness-plan-writing skill to create the implementation plan."
 
+<HARD-GATE>
+## Milestone ≠ Task
+
+- **Milestone** = a deliverable chunk that can be completed in ONE session (contains 3-6 tasks). Every project has at least one milestone.
+- **Task** = a single unit of implementation work (one file or a few closely related files). Tasks are steps WITHIN a milestone.
+- **ONE plan = ONE milestone.** A plan document lists tasks, NOT milestones.
+- If a single-session project has 6 pieces of work, that is 1 milestone with 6 tasks — NOT 6 milestones.
+- Multiple milestones only exist when a project genuinely spans multiple sessions (e.g., "core engine" session + "UI layer" session).
+
+**Wrong:** 6 milestones for a single-session project
+**Right:** 1 milestone with 6 tasks for a single-session project
+</HARD-GATE>
+
 ## Step 1: Project Scope Assessment
 
 Before writing any plan, assess the milestone scope:
 
 **Ask yourself (or confirm with the user if unclear):**
 
-- How many implementation tasks does this milestone have?
-- How many sessions will this milestone reasonably require?
+- How many implementation tasks does this project have in total?
+- How many sessions will this project reasonably require?
 
 **Milestone Splitting Rule:**
 
 Every milestone should be completable within one session. Estimate:
 - Each task needs ~1-2 Executor runs in the best case
 - Account for failures and retries
-- **Recommended: 3-5 tasks per milestone**
-- If a milestone has >5 tasks, suggest splitting into two milestones
+- **Recommended: 3-5 tasks per milestone, up to 6 is acceptable**
+- If a milestone has >6 tasks, suggest splitting into two milestones
 - If a milestone has only 1 task, that is fine — every project must have at least one milestone
 
 **Decision:**
 
 | Condition | Action |
 |-----------|--------|
-| 1 task | Create milestone-1 with 1 task (valid) |
-| 2-5 tasks | One milestone is fine |
-| >5 tasks | Suggest splitting into multiple milestones |
+| 1-6 tasks | One milestone is fine |
+| >6 tasks | Split into multiple milestones |
 | Unsure | Ask user: "Would you like to split this into multiple milestones?" |
 
 Every plan represents ONE milestone. A project may have multiple milestones.
+
+**All-Milestone Plans Rule:**
+
+When a project has multiple milestones, you MUST write a plan for EVERY milestone in this session — not just the first one. After the brainstorm session, you have full context about the project. Once you /clear, that context is gone and you cannot write good plans. So:
+
+1. Create ALL milestones in `claude-progress.json` (using `harness-milestone add` for each)
+2. Write a plan file for EACH milestone (using the format below)
+3. Link each plan to its milestone (using `harness-milestone set-plan`)
+4. Only then invoke handoff
+
+This ensures that when a milestone is complete and the user resumes, the next milestone's plan already exists and execution can start immediately — no re-planning needed.
 
 ---
 
@@ -62,11 +85,12 @@ This mirrors the logic in `harness-init` Step 3 so both skills behave consistent
 
    Example: `harness-milestone init "PocketMon" --spec docs/harness/specs/2026-04-09-pocketmon-design.md`
 
-2. Add the first milestone (required before `set-plan` can be called):
+2. Add ALL milestones (not just the first one):
    ```
-   harness-milestone add "<milestone title>" --spec docs/harness/specs/YYYY-MM-DD-<topic>-design.md
+   harness-milestone add "<milestone-1 title>" --spec docs/harness/specs/YYYY-MM-DD-<topic>-design.md
+   harness-milestone add "<milestone-2 title>" --spec docs/harness/specs/YYYY-MM-DD-<topic>-design.md
+   # ... add as many as needed
    ```
-   Use the project name as the milestone title (e.g., `"snake game implementation"`).
 
 3. Show milestone list to confirm:
    ```
@@ -77,22 +101,15 @@ This mirrors the logic in `harness-init` Step 3 so both skills behave consistent
 
 **If the file EXISTS (resuming a project):**
 
-1. Check next milestone: `harness-milestone next`
-2. Display the next milestone details to user.
-3. Confirm: "Ready to write the plan for this milestone?"
+This should not happen for the initial planning flow. If it does, check if all milestones have plans — if not, write the missing plans before proceeding.
 
-**If user wants to add a new milestone to an existing project:**
-
-1. Run: `harness-milestone add "<milestone title>" --spec <spec-path> [--depends <milestone-id>]`
-2. The script automatically calculates the next milestone ID (e.g., milestone-3 after milestone-2).
-
-**Handoff note:** After plan is complete and user confirms execution, invoke `harness-handoff` with state=`PLANNING`. The handoff document will reference this milestone's plan file.
+**Handoff note:** After ALL plans are written and user confirms, invoke `harness-handoff` with state=`PLANNING`. The handoff document will reference the first milestone's plan file.
 
 ---
 
-## Step 4: Write the Plan
+## Step 4: Write Plans for ALL Milestones
 
-For the current milestone (the first `passed: false` entry):
+For EACH milestone (iterate through all milestones in order):
 
 1. Write a detailed `plan.md` for THIS MILESTONE using the Task Structure below
 2. Save to `docs/harness/plans/YYYY-MM-DD-<milestone-id>.md`
@@ -101,7 +118,10 @@ For the current milestone (the first `passed: false` entry):
    harness-milestone set-plan <milestone-id> docs/harness/plans/YYYY-MM-DD-<milestone-id>.md
    ```
    Example: `harness-milestone set-plan milestone-1 docs/harness/plans/2026-04-09-milestone-1.md`
-4. Commit: `git add docs/harness/plans/ && git commit -m "harness: plan for milestone-1"`
+4. Commit: `git add docs/harness/plans/ && git commit -m "harness: plan for milestone-N"`
+5. Move to the next milestone and repeat
+
+**Only proceed to the Execution Handoff after ALL milestones have their plans written and linked.**
 
 ## Step 4b: Deprecate Old Plan (if re-planning)
 
@@ -228,11 +248,15 @@ After writing the complete plan:
 
 Fix issues inline.
 
-## Execution Handoff
+## Execution Handoff — MANDATORY
 
-After saving the plan and self-review:
+<HARD-GATE>
+After ALL plans are saved and self-reviewed, you MUST invoke `harness-handoff`. Do NOT proceed directly to `harness-execution`. The execution phase always starts in a fresh session (via `/super-harness:resume`) so the Orchestrator has clean context.
+</HARD-GATE>
 
-> "Plan complete and saved to `docs/harness/plans/<filename>.md`.
+After saving ALL plans and self-review:
+
+> "All plans complete and saved.
 >
 > Ready to move to execution. After confirming, I'll invoke handoff to clear the session context before starting execution.
 >
@@ -243,13 +267,13 @@ Wait for user confirmation.
 **If user confirms:**
 
 1. Invoke `harness-handoff` with state=`PLANNING`:
-   - milestone_id: current milestone id
+   - milestone_id: first milestone id
    - task_id: null (no task started yet)
-   - Next action: `/super-harness:execute --plan docs/harness/plans/<filename>.md`
+   - Next action: `/super-harness:resume` (which will route to harness-execution)
 
-2. After the session clears and user resumes, route to `harness-execution`
+2. After the session clears, user must run `/super-harness:resume` to start execution.
 
 **If user declines:**
 
-- Save the plan and progress file
+- Save all plans and progress file
 - User can resume later with `/super-harness:resume`
