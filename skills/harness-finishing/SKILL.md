@@ -9,6 +9,22 @@ Guide the completion of implementation work: verify everything passes, decide ho
 
 **Announce at start:** "I'm using the harness-finishing skill to complete this development branch."
 
+## Step 0: Read Worktree Info
+
+Before any phase, read the worktree path from `status/claude-progress.json`:
+
+```
+bash: python3 -c "import json; d=json.load(open('status/claude-progress.json')); wt=d.get('worktree'); print(wt['path'] + '|' + wt['branch'] if wt else '')"
+```
+
+**If worktree exists:**
+- Set `WORKTREE_PATH` and `WORKTREE_BRANCH` from progress.json
+- All subsequent commands run inside the worktree (`cd "$WORKTREE_PATH"`)
+
+**If no worktree (user worked on main):**
+- Set `WORKTREE_PATH=""` and `WORKTREE_BRANCH="$(git branch --show-current)"`
+- All commands run in the current directory
+
 ## When to Invoke This Skill
 
 Invoked automatically by `harness-execution` after all tasks complete and Code Quality Review has passed for each task.
@@ -22,7 +38,7 @@ Also invoke directly when the user wants to wrap up a development branch.
 Before considering any merge or PR, confirm the complete test suite passes:
 
 ```bash
-cd <worktree-path>
+cd "$WORKTREE_PATH"
 <run full test suite>
 ```
 
@@ -48,7 +64,7 @@ Determine the target branch for integration:
 
 ```bash
 git branch -a | grep -E "main|master|develop"
-git log --oneline <branch-name>..main  # commits unique to this branch
+git log --oneline "$WORKTREE_BRANCH"..main  # commits unique to this branch
 ```
 
 Ask the user if unclear: "What is the base branch for this work? (main/master/develop)"
@@ -69,7 +85,7 @@ Present the integration options:
 
 > "All N tasks complete and verified. How would you like to integrate this work?
 >
-> 1. **Merge locally** — merge `<branch>` into `<base>` right now (good for solo work)
+> 1. **Merge locally** — merge `$WORKTREE_BRANCH` into `<base>` right now (good for solo work)
 > 2. **Push and create PR** — push branch and open a pull request (good for team review)
 > 3. **Keep branch open** — leave the worktree as-is, continue later (no integration yet)
 > 4. **Discard** — abandon this branch and worktree (throw away all work)"
@@ -81,7 +97,7 @@ Wait for user selection.
 ```bash
 cd <main-checkout>
 git checkout <base-branch>
-git merge --no-ff <branch-name> -m "harness: merge <milestone> — <description>"
+git merge --no-ff "$WORKTREE_BRANCH" -m "harness: merge <milestone> — <description>"
 ```
 
 Verify the merge:
@@ -98,8 +114,8 @@ After successful merge, proceed to Phase 4 (Worktree Cleanup).
 ### Option 2: Push and Create PR
 
 ```bash
-cd <worktree-path>
-git push -u origin <branch-name>
+cd "$WORKTREE_PATH"
+git push -u origin "$WORKTREE_BRANCH"
 ```
 
 Then create the PR (using gh CLI or display instructions):
@@ -129,7 +145,7 @@ After pushing and creating PR, ask: "Proceed with worktree cleanup? (yes/no)"
 
 ### Option 3: Keep Branch Open
 
-> "Branch `<name>` and worktree `<path>` preserved. Resume with `/super-harness:resume` when ready."
+> "Branch `$WORKTREE_BRANCH` and worktree `$WORKTREE_PATH` preserved. Resume with `/super-harness:resume` when ready."
 
 Update `claude-progress.json` if applicable (don't mark milestone as passed — it's still open).
 
@@ -139,14 +155,14 @@ No cleanup.
 
 Confirm with user before discarding:
 
-> "⚠️ This will discard ALL work on branch `<name>`. This cannot be undone. Are you sure? (type 'DISCARD' to confirm)"
+> "⚠️ This will discard ALL work on branch `$WORKTREE_BRANCH`. This cannot be undone. Are you sure? (type 'DISCARD' to confirm)"
 
 Only proceed if user types `DISCARD`.
 
 ```bash
 cd <main-checkout>
-git worktree remove --force <worktree-path>
-git branch -D <branch-name>
+git worktree remove --force "$WORKTREE_PATH"
+git branch -D "$WORKTREE_BRANCH"
 git worktree prune
 ```
 
@@ -158,14 +174,14 @@ After Option 1 (merge) or Option 2 (PR, if user agreed):
 
 ```bash
 # From the main checkout directory
-git worktree remove <worktree-path>
+git worktree remove "$WORKTREE_PATH"
 git worktree prune
 ```
 
 If the branch was merged and is no longer needed:
 
 ```bash
-git branch -d <branch-name>
+git branch -d "$WORKTREE_BRANCH"
 ```
 
 Confirm cleanup:
@@ -192,7 +208,7 @@ After successful merge or PR creation:
 
 > "### Development Branch Complete 🎯
 >
-> **Branch:** `<branch-name>`
+> **Branch:** `$WORKTREE_BRANCH` (worktree: `$WORKTREE_PATH`)
 > **Tasks:** N completed (all Code Quality Review approved)
 > **Integration:** <Merged locally / PR #N created / Kept open / Discarded>
 > **Milestone:** \<title\> — marked as passed
@@ -208,3 +224,4 @@ After successful merge or PR creation:
 - Merging to `main`/`master` on a team project without a PR
 - Cleaning up worktree before confirming successful merge/push
 - Marking milestone as passed before merge/PR is confirmed
+- Running finishing commands outside the worktree when a worktree is recorded

@@ -127,6 +127,7 @@ with open('${PROGRESS_FILE}') as f:
 
 # Extract structured fields from claude-progress.json
 spec_file = d.get('spec_file', '')
+worktree = d.get('worktree')
 
 # Find current (first non-passed) milestone
 milestone_id = ''
@@ -176,6 +177,8 @@ context_lines = [
 ]
 if project_md_exists:
     context_lines.append('- **project:** status/PROJECT.md')
+if worktree:
+    context_lines.append(f'- **worktree:** {worktree.get("path", "")} (branch: {worktree.get("branch", "")})')
 context_index = '\n'.join(context_lines)
 
 # Build deferred items section
@@ -199,6 +202,12 @@ if next_action:
 else:
     next_action_section = '## Next Action\n(start next session with /super-harness:resume)'
 
+# Build worktree section
+if worktree:
+    worktree_section = f"## Worktree\n- path: {worktree.get('path', '')}\n- branch: {worktree.get('branch', '')}"
+else:
+    worktree_section = "## Worktree\n(no worktree — working on main)"
+
 # Assemble handoff document
 handoff = f"""# Handoff — {timestamp}
 
@@ -207,6 +216,9 @@ handoff = f"""# Handoff — {timestamp}
 
 ## Context Index
 {context_index}
+
+## Worktree
+{worktree_section}
 
 ## Current Position
 - milestone_id: {milestone_id}

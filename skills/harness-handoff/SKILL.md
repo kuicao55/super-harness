@@ -136,7 +136,7 @@ Generate a complete PROJECT.md from scratch:
 ## Project Identity
 
 **Project Name:** <name>
-**Harness Version:** 3.3.0
+**Harness Version:** 3.4.0
 **Generated:** <YYYY-MM-DD>
 **Last Updated:** <YYYY-MM-DD>
 

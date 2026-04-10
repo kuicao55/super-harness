@@ -48,12 +48,17 @@ You MUST create a task for each of these items and complete them in order:
 
 ### Visual Companion
 
-Before asking clarifying questions, consider: does this topic involve visual design, UI layout, or architectural diagrams that would benefit from a browser view?
+**Offer the visual companion** when you anticipate that upcoming questions will involve visual content (mockups, layouts, diagrams, comparisons). You don't need to know for certain yet — if the topic *might* involve visuals, offer it.
 
-- **Offer the visual companion** if the topic is visual: "This involves UI design/architecture diagrams. Would you like to see visual options in the browser? (yes/no)"
-- Start the server with `skills/harness-brainstorming/scripts/start-server.sh --project-dir <project-path>`
-- Follow the `visual-companion.md` guide for the interaction loop
-- Fall back to terminal text for conceptual/textual questions even during a visual session
+**This offer MUST be its own message.** Do not combine it with clarifying questions, context summaries, or any other content. The message should contain ONLY the offer below and nothing else:
+
+> "Some of what we're working on might be easier to explain if I can show it to you in a web browser. I can put together mockups, diagrams, comparisons, and other visuals as we go. Want to try it? (Requires opening a local URL)"
+
+Wait for the user's response. If they decline, proceed with text-only brainstorming. If they accept, start the server with `skills/harness-brainstorming/scripts/start-server.sh --project-dir <project-path>` and follow the `visual-companion.md` guide for the interaction loop.
+
+**Per-question decision:** Even after the user accepts, decide FOR EACH QUESTION whether to use the browser or the terminal. A question *about* a UI topic is not automatically a visual question:
+- **Use the browser** for mockups, layouts, wireframes, side-by-side comparisons, architecture diagrams
+- **Use the terminal** for requirements questions, conceptual choices, tradeoff lists, technical decisions
 
 ### Scope Decomposition
 

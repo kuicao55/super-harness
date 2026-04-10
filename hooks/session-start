@@ -14,7 +14,7 @@ elif [[ -f "claude-progress.json" ]]; then
 fi
 
 # Build the context message
-CONTEXT="harness is active (v3.3.0 — Orchestrator / Executor / Reviewer architecture).
+CONTEXT=CONTEXT="harness is active (v3.4.0 — Orchestrator / Executor / Reviewer architecture).
 
 Available commands:
   /super-harness:brainstorm  — Start structured brainstorming (with optional Visual Companion and scope decomposition)
@@ -28,13 +28,14 @@ Available commands:
 Architecture:
   Orchestrator coordinates execution. Executor writes code (TDD). Two Reviewers audit independently.
   Each role can use Claude subagent or Codex engine (/codex:rescue, /codex:review, /codex:adversarial-review).
+  All implementation happens in a git worktree (created on first execution, shared across milestones).
 
 Session boundary: Every session ends with a handoff document at docs/harness/handoffs/. Resume reads this to restore context.
 
 Available skills:
   harness:harness-brainstorming   — Structured brainstorming with visual companion
   harness:harness-plan-writing    — Scale-aware implementation planning
-  harness:harness-execution       — Orchestrator-mode task execution
+  harness:harness-execution       — Orchestrator-mode task execution (includes worktree Step 0)
   harness:harness-entry           — Command routing and resume logic
   harness:harness-handoff         — Session boundary handoff document creation
   harness:harness-debugging       — 4-phase systematic debugging
@@ -82,4 +83,4 @@ output = {
     }
 }
 print(json.dumps(output))
-" "$CONTEXT" 2>/dev/null || echo "{\"hookSpecificOutput\": {\"additionalContext\": \"harness v3.3.0 active. Commands: /super-harness:brainstorm, /super-harness:plan, /super-harness:execute, /super-harness:resume, /super-harness:status\"}}"
+" "$CONTEXT" 2>/dev/null || echo "{\"hookSpecificOutput\": {\"additionalContext\": \"harness v3.4.0 active. Commands: /super-harness:brainstorm, /super-harness:plan, /super-harness:execute, /super-harness:resume, /super-harness:status\"}}"

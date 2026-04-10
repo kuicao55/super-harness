@@ -1,4 +1,4 @@
-# super-harness v3.3.0
+# super-harness v3.4.0
 
 > **Built on [obra/superpowers](https://github.com/obra/superpowers)** — the agentic skills framework and software development methodology by Jesse Vincent. This project extends superpowers with cross-session milestone tracking, mandatory activity logging, an Orchestrator / Executor / Reviewer agent architecture, and dual-engine Codex integration. If you haven't seen superpowers, start there first.
 
@@ -36,7 +36,7 @@ A Claude Code skill plugin for structured, long-running software development pro
 | **Activity logging**                | Every completed task logged to `logs/activity-YYYY-MM-DD.jsonl` — engine used, Codex session IDs, review verdicts, deferred items, PROCESS_VIOLATION events.                           |
 | **Visual Companion**                | Optional browser UI during brainstorming for mockups, architecture diagrams, and design option cards.                                                                                |
 | **TDD Process Enforcement**         | Mandatory TDD Audit gate, Rationalization Counter-Tables, Red Flags STOP rules, Regression Test Validation Pattern, PROCESS_VIOLATION status for TDD violations.                        |
-| **Session Handoffs**                | `harness-handoff` creates Handoff Documents (`docs/harness/handoffs/`). `/super-harness:resume` loads them. Context resets on milestone completion or after 5 consecutive tasks.        |
+| **Session Handoffs**                | `harness-handoff` creates Handoff Documents (`docs/harness/handoffs/`). `/super-harness:resume` loads them. Context resets on milestone completion. Each milestone = one session.        |
 
 ---
 
@@ -252,7 +252,7 @@ If ANY box is unchecked → log PROCESS_VIOLATION, stop, correct before continui
 │    → activity-logging (engine, Codex session ID, PROCESS_VIOLATIONs)   │
 │    → update plan checkbox [x]                                           │
 │    → check milestone completion                                         │
-│    → Context Reset: milestone done OR 5 consecutive tasks →            │
+│    → Context Reset: milestone done →                                   │
 │      harness-handoff (Handoff Document + /clear)                    │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -307,11 +307,8 @@ flowchart TD
     F7 -->|FAIL| F1
     F7 -->|PASS| F8["Log activity + update plan ✓"]
     F8 --> F9{Milestone done?}
-    F9 -->|no| F9b{5 tasks since reset?}
-    F9b -->|no| F10{More tasks?}
-    F9b -->|yes| F11[harness-handoff → Handoff + /clear]
-    F11 --> F
-    F9 -->|yes| F12[harness-handoff → Handoff + /clear]
+    F9 -->|no| F10{More tasks?}
+    F9 -->|yes| F11[harness-handoff → Handoff + /clear]
     F10 -->|yes| F
     F10 -->|no| G["harness-verification: run full test suite"]
     G --> H["harness-finishing: 4 integration options"]
@@ -850,7 +847,7 @@ super-harness/
     session-start                  # Injects commands/context at session start
   scripts/
     harness-preflight              # Pre-flight check (project state detection, dir creation, file validation)
-    harness-milestone             # Milestone management (init, add, set-plan, complete, list, next, status)
+    harness-milestone             # Milestone management (init, add, set-plan, set-worktree, complete, list, next, status)
     harness-handoff               # Handoff document management (single file, auto-commit)
     bump-version.sh                # Version bump utility
   skills/

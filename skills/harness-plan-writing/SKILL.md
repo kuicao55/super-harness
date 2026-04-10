@@ -75,35 +75,74 @@ This mirrors the logic in `harness-init` Step 3 so both skills behave consistent
 
 ---
 
-## Step 3: Initialize or Update Progress File
+## Step 3: Initialize Milestones
 
 **Use the `harness-milestone` script for all milestone operations.** Do NOT manually edit `status/claude-progress.json`.
-
-**If `status/claude-progress.json` does NOT exist (new project):**
 
 1. Run: `harness-milestone init "<project-name>" --spec docs/harness/specs/YYYY-MM-DD-<topic>-design.md`
 
    Example: `harness-milestone init "PocketMon" --spec docs/harness/specs/2026-04-09-pocketmon-design.md`
 
-2. Add ALL milestones (not just the first one):
+2. Add the first milestone:
    ```
    harness-milestone add "<milestone-1 title>" --spec docs/harness/specs/YYYY-MM-DD-<topic>-design.md
+   ```
+
+3. If Step 1's assessment determined multiple milestones are needed, add them now:
+   ```
    harness-milestone add "<milestone-2 title>" --spec docs/harness/specs/YYYY-MM-DD-<topic>-design.md
-   # ... add as many as needed
+   # ... add as many as determined
    ```
 
-3. Show milestone list to confirm:
+4. Show milestone list: `harness-milestone list`
+
+---
+
+## Step 3b: Milestone Decomposition — MANDATORY USER GATE
+
+<HARD-GATE>
+**Do NOT write any plan file until this step is complete and user has confirmed the decomposition.**
+
+You MUST break down each milestone into specific tasks and show the task count before writing any plan.
+</HARD-GATE>
+
+For each milestone, list the tasks it will contain. Present the full decomposition to the user for confirmation before proceeding.
+
+**For each milestone:**
+
+1. **List the tasks** for this milestone — be specific:
    ```
-   harness-milestone list
+   Milestone 1: <title>
+   - Task 1: <specific component>
+   - Task 2: <specific component>
+   ...
+   Total: N tasks
    ```
 
-4. Confirm with user before proceeding.
+2. **Enforce the 6-task limit:**
+   - If any milestone has > 6 tasks: you MUST split it into two milestones before proceeding. Show the proposed split and ask for confirmation.
+   - Recommended range: 3-6 tasks per milestone
+   - Ask the user to confirm or adjust the decomposition.
 
-**If the file EXISTS (resuming a project):**
+**Present the full decomposition table:**
 
-This should not happen for the initial planning flow. If it does, check if all milestones have plans — if not, write the missing plans before proceeding.
+```
+| Milestone | Task Breakdown | # |
+|-----------|---------------|---|
+| milestone-1 | Task 1, Task 2, ... | 5 |
+| milestone-2 | Task 1, Task 2, ... | 4 |
 
-**Handoff note:** After ALL plans are written and user confirms, invoke `harness-handoff` with state=`PLANNING`. The handoff document will reference the first milestone's plan file.
+Total: 2 milestones, 9 tasks
+```
+
+> "Here is the milestone breakdown. Please review and confirm before I write the plans."
+
+**If user requests changes** — adjust the decomposition and re-present.
+
+**Once confirmed:**
+
+1. Run `harness-milestone add` for any newly created milestones
+2. Proceed to Step 4
 
 ---
 

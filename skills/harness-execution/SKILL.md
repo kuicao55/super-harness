@@ -14,11 +14,43 @@ Execute a plan task by task. Orchestrator coordinates: Executor implements (TDD)
 <HARD-GATE>
 The following Setup steps MUST be completed before dispatching any Executor. Do NOT skip to task execution without completing all required steps.
 
-- **First execution (from `/super-harness:execute`):** Complete Step 1 → Step 2 → Step 3 → Step 4 in order.
-- **Resume execution (from `/super-harness:resume`, `setup_required=true`):** Skip Step 1 (plan already loaded by resume flow), complete Step 2 → Step 3 → Step 4. Engine configuration is per-session — it MUST be re-collected after every `/clear`.
+- **First execution (from `/super-harness:execute`):** Complete Step 0 → Step 1 → Step 2 → Step 3 → Step 4 in order.
+- **Resume execution (from `/super-harness:resume`, `setup_required=true`):** Complete Step 0 (change to worktree), then Step 2 → Step 3 → Step 4. Engine configuration is per-session — it MUST be re-collected after every `/clear`.
 </HARD-GATE>
 
-### Step 1: Load the Plan
+### Step 0: Worktree Setup
+
+**Announce:** "Setting up worktree for isolated development..."
+
+This step ensures all implementation work happens in an isolated git worktree, never directly on main/master.
+
+Read `status/claude-progress.json` to check for an existing worktree:
+
+```
+bash: python3 -c "import json; d=json.load(open('status/claude-progress.json')); wt=d.get('worktree'); print(wt['path'] + '|' + wt['branch'] if wt else '')"
+```
+
+**If `worktree` field exists in progress.json:**
+> "Resuming in existing worktree at `<path>` (branch: `<branch>`)"
+1. `cd` into the worktree path
+2. Verify: `git worktree list` shows the worktree
+3. Verify: `git branch --show-current` matches the saved branch
+4. Proceed to Step 1 (or Step 2 for resume)
+
+**If `worktree` field does NOT exist (first execution):**
+1. Check for existing worktrees: `git worktree list`
+2. If a worktree already exists for this project → use it (save to progress.json)
+3. If no worktree exists → invoke `harness-worktrees` to create one:
+   > "No worktree found. Creating one for isolated development..."
+   - Run `harness-worktrees` (this will create the worktree and run baseline tests)
+   - After worktrees skill completes, save the worktree path and branch to progress.json:
+     ```bash
+     harness-milestone set-worktree "<worktree-path>" "<branch-name>"
+     ```
+4. `cd` into the worktree path
+5. Proceed to Step 1
+
+**Note:** The worktree is shared across all milestones. It is created once and reused for the entire project.
 
 Read the plan file. If not specified, ask: "Which plan file should I execute? (path to the `.md` file in `docs/harness/plans/`)"
 
@@ -49,35 +81,37 @@ Run `/codex:setup` to check if Codex is installed and authenticated.
 
 **Announce:** "Collecting engine preferences for this execution session..."
 
-Collect these preferences ONCE before starting. These apply to all subsequent tasks.
+Ask the user one question to collect all engine preferences at once:
 
 ```
-Engine Configuration:
+Ask the user:
+"本次执行使用哪种引擎配置？"
 
-1. Executor 引擎：
-   → 只能使用 Claude subagent（/codex:rescue 作为救援方案）
-   [无需选择，直接继续]
+Options:
+1. **Claude 模式** — 纯 Claude，无 Codex
+   - Executor rescue: 不切换（纯 Claude）
+   - Spec Review: Claude subagent
+   - Code Quality Review: Claude subagent
+   - Codex fallback: auto
 
-2. Executor 失败超过 N 次后切换 /codex:rescue：
-   → (1) 2 次  (2) 3 次  (3) 不切换（纯 Claude 模式）
-   → 默认：(1)
+2. **Codex 模式** — Codex 负责所有 review 阶段
+   - Executor rescue: 2 次失败后切换
+   - Spec Review: Codex review
+   - Code Quality Review: Codex adversarial-review
+   - Codex fallback: auto
 
-3. Spec Review 引擎：
-   → (1) Claude subagent  (2) Codex review
-   → 默认：(2)
+3. **均衡模式** — Claude 做 Spec Review，Codex 做 Code Quality Review
+   - Executor rescue: 2 次失败后切换
+   - Spec Review: Claude subagent
+   - Code Quality Review: Codex adversarial-review
+   - Codex fallback: auto
 
-4. Code Quality Review 引擎：
-   → (1) Claude subagent  (2) Codex adversarial-review
-   → 默认：(2)
-
-5. Codex 调用失败时：
-   → (1) Auto-fallback to Claude  (2) 询问用户
-   → 默认：(1)
+Multi-select: false
 ```
 
-**MUST confirm with user before proceeding.** Display the configuration above and ask: "Engine 配置确认？（直接 Enter 使用默认值，或输入数字修改）"
+Wait for the user's selection before proceeding.
 
-**When `codex_available = false`:** Q3 and Q4 must fall back to Claude subagent. Show user the modified defaults and confirm.
+**When `codex_available = false`:** If the user selected Codex模式 or 均衡模式, automatically substitute Claude subagent for the unavailable Codex engines and inform the user.
 
 ### Step 4: Create Task List
 
@@ -132,6 +166,22 @@ Orchestrator ONLY: load plan, dispatch Task/Subagent or Codex, merge results, up
 Violating this gate invalidates the run; stop and restart the task with proper dispatch.
 </HARD-GATE>
 
+### Engine Dispatch Rule — HARD-GATE
+
+The dispatch mechanism depends on the engine selected in Step 3:
+
+**Claude engines (Claude subagent):**
+→ Use `Agent` tool (Task/Subagent) with the corresponding prompt template
+
+**Codex engines (Codex review, Codex adversarial-review, Codex rescue):**
+→ **Output as TEXT directly in the main session.** The slash command is text output, NOT a tool call.
+→ Examples:
+  - Spec Review (Codex): `/codex:review --background "<task description>"`
+  - Code Quality Review (Codex): `/codex:adversarial-review --background "<task description>"`
+  - Executor rescue (Codex): `/codex:rescue <task> --background [--model X] [--effort Y]`
+
+**NEVER use `Agent` tool or `Task` tool for Codex engines.** Using `Agent` tool for Codex is a HARD-GATE violation. Codex slash commands are handled internally by Claude Code — output them as plain text and Claude Code will dispatch them correctly.
+
 ---
 
 ## Per-Task Execution Flow
@@ -165,7 +215,7 @@ If self-check fails:
 
 **Using pre-configured engine:** Claude subagent (as configured in Step 3)
 
-Dispatch using Task/Subagent tooling with `executor-prompt.md` template. Provide:
+Use `Agent` tool with `executor-prompt.md`. Provide:
 - Full task text (never make Executor read the plan file)
 - Scene-setting context: prior tasks built, architecture decisions, key files
 - Working directory
@@ -236,11 +286,11 @@ Format and send using `codex-review-prompt.md` rescue template. Then:
 
 ### Step 2: Spec Review Decision Point
 
-**Using pre-configured engine from Q3:**
-- Claude subagent → dispatch Task/Subagent with `spec-reviewer-prompt.md`
-- Codex review → **output `/codex:review --background "<task description>"` as text directly in main session** (Claude Code dispatches it internally). Do NOT use `Bash(codex review ...)` CLI — the slash command handles async dispatch and polling internally.
+**Using pre-configured Spec Review engine:**
+- Claude subagent → use `Agent` tool with `spec-reviewer-prompt.md`
+- Codex review → **output as text:** `/codex:review --background "<task description>"`
 
-Dispatch using Task/Subagent tooling and `spec-reviewer-prompt.md` template. Provide:
+Provide to the dispatched reviewer:
 
 - Full task requirements text
 - Executor's implementation report
@@ -251,11 +301,11 @@ Handle Spec Reviewer verdict:
 | Verdict          | Action                                                               |
 | ---------------- | -------------------------------------------------------------------- |
 | `SPEC_COMPLIANT` | Proceed to Step 3: Code Quality Review Decision Point               |
-| `SPEC_ISSUES`    | Return to Step 1 — dispatch Executor to fix, then re-run Spec Review |
+| `SPEC_ISSUES`    | Return to Step 1 — use `Agent` tool to re-dispatch Executor, then re-run Spec Review |
 
 **Spec Review re-try limit:** If Spec Review has failed 3 times, assess whether the reviewer clearly identified a root cause:
 
-- **Root cause clear** (e.g., reviewer pinpointed the exact bug, missing condition, or logic error): Return to Step 1 — dispatch Executor to fix the specific issue, then re-run Spec Review. Do NOT ask the user.
+- **Root cause clear** (e.g., reviewer pinpointed the exact bug, missing condition, or logic error): Return to Step 1 — use `Agent` tool to re-dispatch Executor, then re-run Spec Review. Do NOT ask the user.
 - **Root cause unclear** (e.g., reviewer timed out, returned vague/inconsistent findings, or same issue persists after 3 distinct fixes): escalate to user:
 
 > "Task N has failed Spec Review 3 times. Issues: \<summary\>. Options:
@@ -266,11 +316,11 @@ Handle Spec Reviewer verdict:
 
 ### Step 3: Code Quality Review Decision Point
 
-**Using pre-configured engine from Q4:**
-- Claude subagent → dispatch Task/Subagent with `code-quality-reviewer-prompt.md`
-- Codex adversarial-review → **output `/codex:adversarial-review --background "<task description>"` as text directly in main session**. Do NOT use `Bash(codex adversarial-review ...)` CLI — `adversarial-review` has no CLI equivalent, only the slash command works.
+**Using pre-configured Code Quality Review engine:**
+- Claude subagent → use `Agent` tool with `code-quality-reviewer-prompt.md`
+- Codex adversarial-review → **output as text:** `/codex:adversarial-review --background "<task description>"`
 
-Dispatch using Task/Subagent tooling and `code-quality-reviewer-prompt.md` template. Provide:
+Provide to the dispatched reviewer:
 
 - Full task requirements text
 - Executor's implementation report
@@ -281,13 +331,13 @@ Handle verdict:
 | Verdict | Action                                                                      |
 | ------- | --------------------------------------------------------------------------- |
 | `PASS`  | Task complete — proceed to Post-Task                                        |
-| `FAIL`  | Return to Step 1 — dispatch Executor to fix, then re-run both review stages |
+| `FAIL`  | Return to Step 1 — use `Agent` tool to re-dispatch Executor, then re-run both review stages |
 
 **Codex note:** The slash commands `/codex:review` and `/codex:adversarial-review` handle async dispatch and polling internally when output as text in the main session. Do NOT attempt to replicate this via Bash CLI calls.
 
-**Q5 Fallback (Codex failure):**
-- If Q5 = Auto-fallback: automatically use Claude subagent without prompting
-- If Q5 = Ask: prompt user "Codex failed. Retry with Claude subagent?"
+**Codex fallback (Codex failure):**
+- Auto-fallback: automatically use Claude subagent without prompting
+- Ask: prompt user "Codex failed. Retry with Claude subagent?"
 
 ### Dispatch Validation Checklist (Run per task)
 
@@ -309,7 +359,7 @@ If only plan checkboxes are being updated and TodoWrite is not visible/updating,
 
 **Code Quality Review re-try limit:** If Code Quality Review has failed 3 times, assess whether the reviewer clearly identified a root cause:
 
-- **Root cause clear** (e.g., reviewer pinpointed the exact security issue, performance bug, or edge case failure): Return to Step 1 — dispatch Executor to fix the specific issue, then re-run both review stages. Do NOT ask the user.
+- **Root cause clear** (e.g., reviewer pinpointed the exact security issue, performance bug, or edge case failure): Return to Step 1 — use `Agent` tool to re-dispatch Executor, then re-run both review stages. Do NOT ask the user.
 - **Root cause unclear** (e.g., reviewer timed out, returned vague/inconsistent findings, or same issue persists after 3 distinct fixes): escalate to user:
 
 > "Task N has failed Code Quality Review 3 times. Issues: \<summary\>. Options:
@@ -405,7 +455,7 @@ As each sub-step starts/completes:
 
 ## Red Flags — STOP
 
-- Starting implementation on `main`/`master` without explicit user consent (use `harness-worktrees`)
+- Starting implementation on `main`/`master` without going through Step 0 worktree setup
 - Proceeding to next task while Code Quality Review has open issues
 - Trusting Executor self-review instead of running both Reviewers
 - Letting Executor write production code before a failing test exists

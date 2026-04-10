@@ -142,6 +142,12 @@ Read the handoff document and display:
 - Spec: <path>
 - Plan: <path>
 - Progress: status/claude-progress.json
+- Worktree: <path> (branch: <branch>) ← if worktree exists
+
+### Worktree
+Read worktree info from the handoff document (or from status/claude-progress.json). If a worktree is recorded:
+> "Worktree detected: `<path>` (branch: `<branch>`). Orchestrator will continue in this worktree."
+Note: The Orchestrator (harness-execution) will handle the actual `cd` into the worktree via its Setup Step 0. No directory change needed here.
 
 ### Current Position
 <state-specific information>
@@ -163,6 +169,7 @@ After displaying the handoff summary, verify that all referenced files in the Co
 1. Read the plan file path from the handoff → verify it exists
 2. Read the spec file path from the handoff → verify it exists
 3. Read `status/claude-progress.json` → verify it exists
+4. If worktree is recorded in handoff: verify the worktree path exists (`ls <worktree-path>`)
 
 **If any file is missing:**
 
