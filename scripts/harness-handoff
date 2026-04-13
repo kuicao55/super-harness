@@ -290,6 +290,6 @@ git add "$HANDOFF_FILE" "$PROGRESS_FILE" 2>/dev/null || true
 if git diff --cached --quiet 2>/dev/null; then
     echo "No changes to commit."
 else
-    git commit -m "harness: handoff — ${STATE,,}" 2>/dev/null || true
+    git commit -m "harness: handoff — $(echo "$STATE" | tr '[:upper:]' '[:lower:]')" 2>/dev/null || true
     echo "Committed."
 fi

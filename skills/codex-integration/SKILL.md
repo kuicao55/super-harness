@@ -9,19 +9,28 @@ Orchestrator can delegate tasks to Codex as an alternative engine for Executor a
 
 All commands are provided by the `codex-plugin-cc` plugin (v1.0.2+): [https://github.com/openai/codex-plugin-cc](https://github.com/openai/codex-plugin-cc)
 
+**IMPORTANT:** Codex commands must be invoked via `codex-companion.mjs` using the Bash tool — NOT as slash commands. Slash commands only work in the main session; Orchestrator runs as a sub-agent where they are not intercepted.
+
+**Companion script path:**
+```
+CLAUDE_PLUGIN_ROOT="${HOME}/.claude/plugins/marketplaces/openai-codex/plugins/codex"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" <command> [args]
+```
+
 ---
 
 ## A. Availability Detection and Initialization
 
 Before using any Codex engine, check availability:
 
+```bash
+Bash: node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" setup --json
 ```
-1. Execute /codex:setup
-2. If setup reports Codex ready → codex_available = true
-3. If Codex missing and npm is available → offer: "Codex is not installed. /codex:setup can install it automatically. Install now? (yes/no)"
-4. If installed but not authenticated → prompt: "Please run !codex login to complete authentication"
-5. If unavailable for any reason → `codex_available = false`. Orchestrator must **still** present each stage’s Decision Point to the user; Codex options are omitted or marked unavailable, and the user confirms Claude subagent (or cancels). Do not silently skip asking.
-```
+
+- If Codex is ready → set `codex_available = true`
+- If Codex is missing but npm is available → offer: "Codex is not installed. Run `npm install -g @openai/codex` to install it."
+- If installed but not authenticated → prompt: "Please run `!codex login` to complete authentication"
+- If unavailable for any reason → set `codex_available = false`. Orchestrator must **still** present each stage's Decision Point to the user; Codex options are omitted or marked unavailable, and the user confirms Claude subagent (or cancels). Do not silently skip asking.
 
 Set `codex_available` once at session start. Do not re-check during the session unless explicitly needed.
 
@@ -29,8 +38,13 @@ Set `codex_available` once at session start. Do not re-check during the session 
 
 `codex-plugin-cc` supports an automatic Review Gate that runs Codex after every Claude response:
 
-- Enable: `/codex:setup --enable-review-gate`
-- Disable: `/codex:setup --disable-review-gate`
+```bash
+# Enable
+Bash: node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" setup --enable-review-gate --json
+
+# Disable
+Bash: node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" setup --disable-review-gate --json
+```
 
 **Warning:** This creates a Claude/Codex loop that can rapidly consume usage limits.
 **Recommendation:** Only enable when actively monitoring the session. Not recommended as a default.
@@ -39,30 +53,35 @@ Set `codex_available` once at session start. Do not re-check during the session 
 
 ## B. Full Command Reference
 
+All commands use `codex-companion.mjs` via Bash. Companion script path:
+```
+CLAUDE_PLUGIN_ROOT="${HOME}/.claude/plugins/marketplaces/openai-codex/plugins/codex"
+```
+
 ### Executor Engine Commands
 
-#### `/codex:rescue <task>` — Delegate implementation to Codex
+#### `task` — Delegate implementation to Codex
 
 ```bash
-# Basic usage
-/codex:rescue <task description> --background
+# Basic usage (dispatch via Bash with run_in_background: true)
+node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" task --background [prompt]
 
 # With model selection
-/codex:rescue <task description> --model gpt-5.4-mini --background
-/codex:rescue <task description> --model spark --effort medium --background
+node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" task --background --model gpt-5.4-mini [prompt]
+node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" task --background --model spark --effort medium [prompt]
 
 # With effort level
-/codex:rescue <task description> --effort high --background
-/codex:rescue <task description> --effort xhigh --background
+node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" task --background --effort high [prompt]
+node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" task --background --effort xhigh [prompt]
 
-# Resume a previous rescue session (same repo)
-/codex:rescue <task description> --resume --background
+# Resume a previous task session (same repo)
+node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" task --background --resume [prompt]
 
 # Fresh start (ignore history)
-/codex:rescue <task description> --fresh --background
+node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" task --background --fresh [prompt]
 
 # Wait for completion (short tasks only)
-/codex:rescue <task description> --wait
+node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" task --wait [prompt]
 ```
 
 **Parameters:**
@@ -72,29 +91,25 @@ Set `codex_available` once at session start. Do not re-check during the session 
 | `--background`     | flag                      | Run without blocking Claude session. Recommended for all non-trivial tasks.    |
 | `--wait`           | flag                      | Block until complete. Use only for very short tasks.                           |
 | `--model <model>`  | `gpt-5.4-mini`, `spark`   | Model selection. `spark` maps to `gpt-5.3-codex-spark` (fastest, lowest cost). |
-| `--effort <level>` | `medium`, `high`, `xhigh` | Reasoning intensity. Higher = better results, more tokens.                     |
-| `--resume`         | flag                      | Continue previous rescue task in same repo.                                    |
+| `--effort <level>` | `minimal`, `low`, `medium`, `high`, `xhigh` | Reasoning intensity. Higher = better results, more tokens. |
+| `--resume`         | flag                      | Continue previous task in same repo.                                           |
 | `--fresh`          | flag                      | Ignore history, start entirely fresh.                                          |
-
-**Natural language delegation also works:**
-
-> "Ask Codex to investigate the failing authentication test and suggest a fix"
 
 ---
 
 ### Reviewer Engine Commands
 
-#### `/codex:review` — Standard spec compliance review (Stage 1 Reviewer)
+#### `review` — Standard spec compliance review (Stage 1 Reviewer)
 
 ```bash
 # Basic review (all changes since last commit)
-/codex:review --background
+Bash: node "...codex-companion.mjs" review --background
 
-# Compare against a specific branch (use when working in a git worktree)
-/codex:review --base main --background
+# Compare against a specific branch (recommended when working in a worktree)
+Bash: node "...codex-companion.mjs" review --background --base main
 
 # Wait for result (smaller changesets)
-/codex:review --base main --wait
+Bash: node "...codex-companion.mjs" review --wait --base main
 ```
 
 **Key characteristics:**
@@ -105,20 +120,19 @@ Set `codex_available` once at session start. Do not re-check during the session 
 
 ---
 
-#### `/codex:adversarial-review` — Adversarial code quality review (Stage 2 Reviewer)
+#### `adversarial-review` — Adversarial code quality review (Stage 2 Reviewer)
 
 ```bash
 # Basic adversarial review
-/codex:adversarial-review --background
+Bash: node "...codex-companion.mjs" adversarial-review --background
 
 # With branch comparison
-/codex:adversarial-review --base main --background
+Bash: node "...codex-companion.mjs" adversarial-review --background --base main
 
 # With focus text (directable)
-/codex:adversarial-review --background look for authentication bypass and injection vectors
-/codex:adversarial-review --background challenge the caching design and look for race conditions
-/codex:adversarial-review --background focus on N+1 query patterns and unbounded memory growth
-/codex:adversarial-review --base main --background look for authorization failures and sensitive data exposure
+Bash: node "...codex-companion.mjs" adversarial-review --background look for authentication bypass and injection vectors
+Bash: node "...codex-companion.mjs" adversarial-review --background --base main challenge the caching design and look for race conditions
+Bash: node "...codex-companion.mjs" adversarial-review --background focus on N+1 query patterns and unbounded memory growth
 ```
 
 **Key characteristics:**
@@ -131,41 +145,29 @@ Set `codex_available` once at session start. Do not re-check during the session 
 
 ### Task Management Commands
 
-Orchestrator uses these to manage background Codex jobs:
-
-#### `/codex:status [task-id]`
-
-Check status of running or recent tasks.
+#### `status` — Check job status
 
 ```bash
-/codex:status           # List all recent tasks
-/codex:status abc123    # Check specific task
+Bash: node "...codex-companion.mjs" status [job-id] --json
 ```
 
-Returns: task state (`running`, `completed`, `failed`), elapsed time, brief summary.
+Returns: job state (`running`, `completed`, `failed`), elapsed time, brief summary.
 
-#### `/codex:result [task-id]`
-
-Retrieve the final output of a completed task.
+#### `result` — Retrieve job output
 
 ```bash
-/codex:result           # Get most recent completed task
-/codex:result abc123    # Get specific task result
+Bash: node "...codex-companion.mjs" result [job-id] --json
 ```
 
 Returns: full output + `session-id` which can be used to continue in Codex app:
-
-```bash
+```
 codex resume <session-id>
 ```
 
-#### `/codex:cancel [task-id]`
-
-Cancel a running background task.
+#### `cancel` — Cancel a running job
 
 ```bash
-/codex:cancel           # Cancel most recent task
-/codex:cancel abc123    # Cancel specific task
+Bash: node "...codex-companion.mjs" cancel [job-id] --json
 ```
 
 ---
@@ -173,16 +175,16 @@ Cancel a running background task.
 ## C. Standard Orchestrator Workflow for Codex Operations
 
 ```
-Phase 1: Dispatch
-  → /codex:rescue|review|adversarial-review [args] --background
-  → Note the task-id from the command response
+Phase 1: Dispatch (via Bash with run_in_background: true)
+  → Bash: node "...codex-companion.mjs" <command> --background [args]
+  → Note the job-id from the command response
 
-Phase 2: Poll (every 15-30 seconds)
-  → /codex:status <task-id>
-  → Wait until status shows "completed" or "failed"
+Phase 2: Poll
+  → Bash: node "...codex-companion.mjs" status <job-id> --json
+  → Wait until state shows "completed" or "failed"
 
 Phase 3: Retrieve
-  → /codex:result <task-id>
+  → Bash: node "...codex-companion.mjs" result <job-id> --json
   → Save the session-id from the output for activity log
 
 Phase 4: Parse
@@ -191,33 +193,38 @@ Phase 4: Parse
 
 Phase 5: Continue
   → Proceed with workflow based on parsed verdict
-  → If task needs continuation: /codex:rescue --resume --background
+  → If task needs continuation: task --background --resume
 
 Phase 6: Cancel (if needed)
-  → If task is stuck or no longer needed: /codex:cancel <task-id>
+  → Bash: node "...codex-companion.mjs" cancel <job-id> --json
   → Then retry or fallback to Claude subagent
+```
+
+**Companion script path (use in all Bash calls):**
+```
+CLAUDE_PLUGIN_ROOT="${HOME}/.claude/plugins/marketplaces/openai-codex/plugins/codex"
 ```
 
 **Polling Interval Guidance:**
 
-| Task Type                         | Initial Poll | Max Wait |
-| --------------------------------- | ------------ | -------- |
-| `/codex:review` (small changeset) | 30s          | 3 min    |
-| `/codex:review` (large changeset) | 60s          | 10 min   |
-| `/codex:adversarial-review`       | 60s          | 10 min   |
-| `/codex:rescue` (simple task)     | 60s          | 15 min   |
-| `/codex:rescue` (complex task)    | 120s         | 30 min   |
+| Task Type                     | Initial Poll | Max Wait |
+| ----------------------------- | ------------ | -------- |
+| `review` (small changeset)    | 30s          | 3 min    |
+| `review` (large changeset)    | 60s          | 10 min   |
+| `adversarial-review`          | 60s          | 10 min   |
+| `task` (simple task)          | 60s          | 15 min   |
+| `task` (complex task)         | 120s         | 30 min   |
 
-If a task exceeds max wait: cancel with `/codex:cancel`, then fall back to Claude subagent or escalate to user.
+If a task exceeds max wait: cancel and fall back to Claude subagent or escalate to user.
 
 ---
 
 ## D. Output Mapping to Standard Executor/Reviewer Formats
 
-### Codex rescue → Executor Report
+### Codex task → Executor Report
 
 ```
-Codex rescue completed → map to Executor report:
+Codex task completed → map to Executor report:
 
 Extract from Codex output:
   - Implementation description → "What I implemented"
@@ -231,8 +238,8 @@ Map status:
   - Could not start / environment error → Status: BLOCKED
 
 Record in activity log:
-  - executor_engine: "codex-rescue"
-  - codex_session_id: <session-id from /codex:result>
+  - executor_engine: "codex-task"
+  - codex_session_id: <session-id from result output>
   - codex_model: <model used, if specified>
   - codex_effort: <effort level, if specified>
 ```
@@ -255,7 +262,7 @@ Map verdict:
 
 Record in activity log:
   - reviewer_engine: "codex-review"
-  - codex_session_id: <session-id from /codex:result>
+  - codex_session_id: <session-id from result output>
 ```
 
 ### Codex adversarial-review → Code Quality Reviewer Report
@@ -280,7 +287,7 @@ Map verdict:
 
 Record in activity log:
   - reviewer_engine: "codex-adversarial-review"
-  - codex_session_id: <session-id from /codex:result>
+  - codex_session_id: <session-id from result output>
 ```
 
 ---
@@ -291,11 +298,11 @@ Display relevant rows at Decision Points to help user choose:
 
 | Command                                             | Relative Cost | Best For                                        |
 | --------------------------------------------------- | ------------- | ----------------------------------------------- |
-| `/codex:rescue --model spark --effort medium`       | Lowest        | Simple/mechanical tasks (1-2 files, clear spec) |
-| `/codex:review`                                     | Moderate      | Standard spec compliance check                  |
-| `/codex:rescue` (default)                           | Moderate-High | General implementation delegation               |
-| `/codex:adversarial-review`                         | Higher        | Security/performance-sensitive code             |
-| `/codex:rescue --model gpt-5.4-mini --effort xhigh` | Highest       | Complex architecture or deeply stuck tasks      |
+| `task --model spark --effort medium`                | Lowest        | Simple/mechanical tasks (1-2 files, clear spec) |
+| `review`                                            | Moderate      | Standard spec compliance check                  |
+| `task` (default)                                    | Moderate-High | General implementation delegation                |
+| `adversarial-review`                                | Higher        | Security/performance-sensitive code              |
+| `task --model gpt-5.4-mini --effort xhigh`          | Highest       | Complex architecture or deeply stuck tasks       |
 
 ---
 
@@ -303,11 +310,11 @@ Display relevant rows at Decision Points to help user choose:
 
 | Scenario                                           | Recommended                                                |
 | -------------------------------------------------- | ---------------------------------------------------------- |
-| Simple mechanical task (rename, format, small fix) | `--model spark --effort medium`                            |
-| Standard feature implementation                    | Omit `--model` (use Codex default)                         |
+| Simple mechanical task (rename, format, small fix)  | `--model spark --effort medium`                            |
+| Standard feature implementation                     | Omit `--model` (use Codex default)                         |
 | Complex multi-file feature                         | `--model gpt-5.4-mini`                                     |
 | Deeply stuck task needing reasoning                | `--model gpt-5.4-mini --effort xhigh`                      |
-| Security-focused adversarial review                | `--effort high` (or `--effort xhigh` for critical systems) |
+| Security-focused adversarial review                 | `--effort high` (or `--effort xhigh` for critical systems) |
 
 ---
 
@@ -320,7 +327,7 @@ When Orchestrator presents a Codex Decision Point to the user, use this format:
 
 Task N: <task name>. Choose engine:
 1. Claude subagent (default) — [brief description of what this does]
-2. Codex <command> — [brief description] (token cost: <level>)
+2. Codex — [brief description] (token cost: <level>)
    [If applicable: suggested flags: --model X --effort Y]
 3. [Additional options if applicable]
 
@@ -335,7 +342,7 @@ If Codex fails or produces unusable output:
 
 1. Log the failure: note `codex_session_id` and error in activity log `notes`
 2. Fallback to Claude subagent for the same role
-3. Optionally: try `/codex:rescue --fresh --background` (ignore previous session state)
+3. Optionally: retry with `task --fresh --background` (ignore previous session state)
 4. If Codex is consistently failing: set `codex_available = false` for the rest of the session and skip all Codex Decision Points
 
 ---
@@ -343,12 +350,17 @@ If Codex fails or produces unusable output:
 ## Quick Reference Card
 
 ```
-CHECK      /codex:setup
-EXECUTE    /codex:rescue <task> [--model gpt-5.4-mini|spark] [--effort medium|high|xhigh] [--background|--wait] [--resume|--fresh]
-REVIEW     /codex:review [--base <ref>] [--background|--wait]
-ATTACK     /codex:adversarial-review [--base <ref>] [--background|--wait] [focus text]
-STATUS     /codex:status [task-id]
-RESULT     /codex:result [task-id]
-CANCEL     /codex:cancel [task-id]
+CHECK      Bash: node "...codex-companion.mjs" setup --json
+EXECUTE    Bash: node "...codex-companion.mjs" task --background [--model X] [--effort Y] [prompt]
+REVIEW     Bash: node "...codex-companion.mjs" review --background [--base <ref>]
+ATTACK     Bash: node "...codex-companion.mjs" adversarial-review --background [--base <ref>] [focus text]
+STATUS     Bash: node "...codex-companion.mjs" status [job-id] --json
+RESULT     Bash: node "...codex-companion.mjs" result [job-id] --json
+CANCEL     Bash: node "...codex-companion.mjs" cancel [job-id] --json
 RESUME     codex resume <session-id>   (in Codex app, not in Claude)
+```
+
+**Companion script path prefix (use in all Bash calls):**
+```
+CLAUDE_PLUGIN_ROOT="${HOME}/.claude/plugins/marketplaces/openai-codex/plugins/codex"
 ```

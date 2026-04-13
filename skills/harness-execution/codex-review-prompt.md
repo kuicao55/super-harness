@@ -1,20 +1,41 @@
 # Codex Call Templates
 
 Use this file when Orchestrator chooses Codex as the engine for Executor or Reviewer roles.
-All Codex commands are provided by the `codex-plugin-cc` plugin (`/codex:*`).
+All Codex commands are invoked via `codex-companion.mjs` using the Bash tool.
+
+**Companion script path:**
+```
+CLAUDE_PLUGIN_ROOT="${HOME}/.claude/plugins/marketplaces/openai-codex/plugins/codex"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" <command> [args]
+```
 
 ---
 
-## Executor Engine: `/codex:rescue`
+## Executor Engine: Codex task
 
 Use when Orchestrator selects Codex as the Executor for a task (instead of Claude subagent).
 Also use when a Claude subagent Executor reports BLOCKED and the user chooses Codex rescue.
 
+### Dispatch Template
+
+```bash
+Bash:
+  command: node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" task --background [--model spark|gpt-5.4-mini] [--effort minimal|low|medium|high|xhigh] [prompt]
+  run_in_background: true
+```
+
+After dispatch:
+1. Note the **Claude Code task ID** from the Bash response (e.g., `btxsezqf1`)
+2. Poll: `TaskOutput(task_id: "<task-id>", block: true, timeout: 300000)` — wait for completion
+3. When complete, the `output` field contains the full Codex result
+4. Extract the session-id from the output (format: `Thread ready (XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX)`) for activity logging
+5. Map output to Executor report format
+
 ### Task Delegation Template
 
-```
-/codex:rescue <task description> --background
+When dispatching, include in the prompt:
 
+```
 Task to implement:
 [FULL TEXT of the task from the plan]
 
@@ -34,56 +55,57 @@ Requirements:
 
 | Scenario                                       | Recommended Command                                                     |
 | ---------------------------------------------- | ----------------------------------------------------------------------- |
-| Simple/mechanical task (1-2 files, clear spec) | `/codex:rescue <task> --model spark --effort medium --background`       |
-| Standard implementation task                   | `/codex:rescue <task> --background`                                     |
-| Complex/integration task                       | `/codex:rescue <task> --model gpt-5.4-mini --effort xhigh --background` |
-| Continuing a stuck task                        | `/codex:rescue <task> --resume --background`                            |
-| Fresh attempt (ignore history)                 | `/codex:rescue <task> --fresh --background`                             |
+| Simple/mechanical task (1-2 files, clear spec) | `task --model spark --effort medium --background`                       |
+| Standard implementation task                   | `task --background`                                                     |
+| Complex/integration task                       | `task --model gpt-5.4-mini --effort xhigh --background`                 |
+| Continuing a stuck task                        | `task --background --resume`                                            |
+| Fresh attempt (ignore history)                | `task --background --fresh`                                             |
 
 **Note:** `spark` maps to `gpt-5.3-codex-spark` (fastest, lowest cost). Omitting `--model` lets Codex choose its own defaults.
 
 ### Blocked Rescue Template
 
-When Claude subagent Executor is BLOCKED, provide full context to Codex:
+When Claude subagent Executor is BLOCKED, dispatch with full context:
 
-```
-/codex:rescue --background
-
-Task: [task name and full description]
-
-What Claude attempted:
-[Executor's blocked report — what was tried and why it failed]
-
-Specific blocker:
-[Precise description of what Claude couldn't resolve]
-
-Context:
-[Architecture, key files, relevant interfaces]
-
-Working directory: [DIRECTORY]
+```bash
+Bash:
+  command: node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" task --background [blocked task description + context]
+  run_in_background: true
 ```
 
 ---
 
-## Reviewer Engine (Stage 1): `/codex:review`
-
-**⚠️ CRITICAL: Do NOT use `Bash(codex ...)` to invoke these commands.**
-
-`/codex:review` and `/codex:adversarial-review` are **slash commands** provided by the codex-plugin-cc plugin. They must be output as plain text for Claude Code to dispatch internally — NOT executed as bash commands. The Codex CLI does not have `adversarial-review` or `review` as subcommands.
+## Reviewer Engine (Stage 1): Codex review
 
 Use when Orchestrator selects Codex as the Spec Reviewer (instead of Claude subagent).
 This is a read-only standard review — cannot be directed with focus text.
 
-### Standard Spec Review
+### Dispatch Template
 
-```
-/codex:review --background
+```bash
+Bash:
+  command: node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" review --background --base main
+  run_in_background: true
 ```
 
-For branch comparison (recommended when working in a worktree):
-
+For working-tree review (no base branch):
+```bash
+Bash:
+  command: node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" review --background
+  run_in_background: true
 ```
-/codex:review --base main --background
+
+### Polling and Retrieval
+
+After dispatch, note the Claude Code task ID from the Bash response, then:
+```bash
+# Poll — wait for completion
+TaskOutput(task_id: "<task-id>", block: true, timeout: 300000)
+
+# The output field contains the full Codex result, including:
+# - "Reviewer finished" → SPEC_COMPLIANT
+# - Issues found → SPEC_ISSUES
+# - Session-id: extract from "Thread ready (SESSION-ID)"
 ```
 
 ### Interpreting Codex Review Output → Spec Reviewer Report
@@ -104,41 +126,47 @@ Codex review output → SPEC_ISSUES when:
 
 ---
 
-## Reviewer Engine (Stage 2): `/codex:adversarial-review`
+## Reviewer Engine (Stage 2): Codex adversarial-review
 
 Use when Orchestrator selects Codex as the Code Quality Reviewer (instead of or alongside Claude subagent).
 This review IS steerable — provide focus text for security-sensitive areas.
 
-### Standard Adversarial Review
+### Dispatch Template
 
-```
-/codex:adversarial-review --background
-```
-
-For branch comparison:
-
-```
-/codex:adversarial-review --base main --background
+```bash
+Bash:
+  command: node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" adversarial-review --background --base main [focus text]
+  run_in_background: true
 ```
 
-### Targeted Adversarial Review (with focus text)
+### Polling
+
+After dispatch, note the Claude Code task ID from the Bash response, then:
+```bash
+# Poll — wait for completion
+TaskOutput(task_id: "<task-id>", block: true, timeout: 300000)
+
+# The output field contains the full Codex result, including:
+# - "[P1]", "[P2]" etc in output → map to Critical/Important/Minor
+# - "Reviewer finished" → review complete, check for issues
+# - Session-id: extract from "Thread ready (SESSION-ID)"
+```
+
+### Targeted Focus Examples
 
 For security-sensitive code:
-
 ```
-/codex:adversarial-review --background look for authentication bypass, injection vulnerabilities, and sensitive data exposure
+adversarial-review --background --base main look for authentication bypass, injection vulnerabilities, and sensitive data exposure
 ```
 
 For performance-sensitive code:
-
 ```
-/codex:adversarial-review --background challenge the algorithmic complexity and look for database queries in loops
+adversarial-review --background --base main challenge the algorithmic complexity and look for database queries in loops
 ```
 
 For concurrent systems:
-
 ```
-/codex:adversarial-review --background look for race conditions, shared state issues, and question the chosen synchronization approach
+adversarial-review --background --base main look for race conditions, shared state issues, and question the chosen synchronization approach
 ```
 
 ### Interpreting Codex Adversarial Review Output → Code Quality Reviewer Report
@@ -165,62 +193,57 @@ Severity mapping:
 When Orchestrator selects "both" for Code Quality Review:
 
 1. Dispatch Claude subagent with `code-quality-reviewer-prompt.md` (runs immediately)
-2. Simultaneously run `/codex:adversarial-review --background [focus text]`
-3. Collect Claude subagent verdict
-4. Poll with `/codex:status` → get result with `/codex:result`
-5. Merge findings:
+2. Simultaneously run Codex adversarial-review via Bash with `run_in_background: true`
+3. Note the Claude Code task ID
+4. Collect Claude subagent verdict
+5. Poll Codex: `TaskOutput(task_id: "<task-id>", block: true, timeout: 300000)`
+6. Merge findings:
    - If either returns FAIL → combined verdict is FAIL
    - Include all issues from both parties in the consolidated report
    - If both return PASS → task complete
 
 ---
 
-## Task Management Commands
+## Task Management
 
-Orchestrator uses these to manage background Codex jobs:
+**For polling, always use `TaskOutput` tool** — NOT `codex-companion.mjs status`:
 
 ```bash
-# Check on a running job
-/codex:status
-/codex:status <task-id>
+# Non-blocking check
+TaskOutput(task_id: "<Claude Code task ID>", block: false)
 
-# Get the final output when done
-/codex:result
-/codex:result <task-id>
+# Blocking wait for completion
+TaskOutput(task_id: "<Claude Code task ID>", block: true, timeout: 300000)
 
-# Cancel a running job (if timed out or no longer needed)
-/codex:cancel
-/codex:cancel <task-id>
-
-# Continue a Codex session in the Codex app
-# (Use the session-id from /codex:result output)
-codex resume <session-id>
+# When status is "completed", the output field contains the full Codex result
 ```
 
-### Polling Pattern for Background Tasks
+**Companion script commands** (use for setup and cancellation):
 
+```bash
+# Check Codex availability
+node "...codex-companion.mjs" setup --json
+
+# Cancel a stuck task (uses Codex session ID, not Claude Code task ID)
+node "...codex-companion.mjs" cancel [session-id] --json
+
+# List Codex jobs (uses Codex session IDs)
+node "...codex-companion.mjs" status --all --json
 ```
-1. Dispatch: /codex:rescue|review|adversarial-review [args] --background
-2. Note the task-id from the response
-3. Poll every 15-30 seconds: /codex:status <task-id>
-4. When status shows complete: /codex:result <task-id>
-5. Parse output and continue workflow
-6. If task seems stuck after several minutes: /codex:cancel <task-id>, then retry or fallback to Claude subagent
-```
+
+**Important:** `status`, `result`, and `cancel` commands use Codex session IDs (e.g., `019d7fe5-9c56-74f1-9cb7-3b69510f2ae8` from "Thread ready (SESSION-ID)"), NOT Claude Code task IDs. For polling, always use `TaskOutput` tool with the Claude Code task ID.
 
 ---
 
 ## Token Cost Reference
 
-Display to user at Decision Points:
-
 | Command                                             | Cost           | When to Use                          |
 | --------------------------------------------------- | -------------- | ------------------------------------ |
-| `/codex:review`                                     | Moderate       | Standard spec compliance check       |
-| `/codex:adversarial-review`                         | Higher         | Security/performance-sensitive code  |
-| `/codex:rescue` (default)                           | Varies by task | General implementation delegation    |
-| `/codex:rescue --model spark`                       | Lowest         | Simple/mechanical tasks              |
-| `/codex:rescue --model gpt-5.4-mini --effort xhigh` | High           | Complex tasks needing deep reasoning |
+| `review`                                            | Moderate       | Standard spec compliance check       |
+| `adversarial-review`                                | Higher         | Security/performance-sensitive code  |
+| `task` (default)                                    | Varies by task | General implementation delegation    |
+| `task --model spark`                                | Lowest         | Simple/mechanical tasks              |
+| `task --model gpt-5.4-mini --effort xhigh`          | High           | Complex tasks needing deep reasoning |
 
 ---
 
@@ -230,9 +253,9 @@ When a task uses Codex, record in the activity log:
 
 ```json
 {
-  "executor_engine": "codex-rescue",
+  "executor_engine": "codex-task",
   "reviewer_engine": "codex-adversarial-review",
-  "codex_session_id": "<session-id from /codex:result>",
+  "codex_session_id": "<session-id from output (Thread ready SESSION-ID)>",
   "codex_model": "gpt-5.4-mini",
   "codex_effort": "high"
 }
