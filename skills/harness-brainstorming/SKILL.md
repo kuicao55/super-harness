@@ -9,6 +9,21 @@ Turn ideas into fully formed designs and specs through natural collaborative dia
 
 **Announce at start:** "I'm using the harness-brainstorming skill."
 
+**Show version banner:**
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+super-harness v<VERSION>
+
+请告诉我你想要开发什么功能？
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+获取版本号：
+```bash
+python3 -c "import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])"
+```
+
 <HARD-GATE>
 Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
 </HARD-GATE>
