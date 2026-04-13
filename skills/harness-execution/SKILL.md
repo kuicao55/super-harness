@@ -22,35 +22,87 @@ The following Setup steps MUST be completed before dispatching any Executor. Do 
 
 **Announce:** "Setting up worktree for isolated development..."
 
-This step ensures all implementation work happens in an isolated git worktree, never directly on main/master.
-
-Read `status/claude-progress.json` to check for an existing worktree:
+This step establishes a **version branch** and a **per-milestone worktree** for isolated development. The model is:
 
 ```
-bash: python3 -c "import json; d=json.load(open('status/claude-progress.json')); wt=d.get('worktree'); print(wt['path'] + '|' + wt['branch'] if wt else '')"
+main ──→ <version-branch> (accumulates all milestones, human reviews this branch)
+              │
+              ├── worktree: milestone-3 → merge back, delete worktree
+              ├── worktree: milestone-4 → merge back, delete worktree
+              └── ...
 ```
 
-**If `worktree` field exists in progress.json:**
+#### Step 0a: Version Branch Setup
+
+Check current branch:
+```bash
+git branch --show-current
+```
+
+**If on `main`/`master`:**
+1. Determine the version branch name. Check `status/claude-progress.json` for a saved `version_branch`:
+   ```bash
+   python3 -c "import json; d=json.load(open('status/claude-progress.json')); print(d.get('version_branch', ''))"
+   ```
+2. If `version_branch` exists → checkout that branch
+3. If no `version_branch` → ask the user:
+   > "You're on `main`. What version branch should I create for this project's work?
+   > Example: `v3.0.0`"
+4. Create and checkout the version branch:
+   ```bash
+   git checkout -b <version-branch>
+   ```
+5. Save version branch to progress.json (add a `version_branch` key)
+
+**If already on a non-main branch:**
+> "Already on version branch `<branch-name>`. Continuing."
+- Save branch as `version_branch` in progress.json if not already saved
+
+#### Step 0b: Per-Milestone Worktree Setup
+
+Each milestone gets its own worktree. After a milestone completes, the worktree is merged back into the version branch and deleted.
+
+Read `status/claude-progress.json` to check for an existing worktree for the current milestone:
+
+```bash
+python3 -c "import json; d=json.load(open('status/claude-progress.json')); wt=d.get('worktree'); print(wt['path'] + '|' + wt['branch'] if wt else '')"
+```
+
+**If `worktree` field exists in progress.json AND the worktree directory exists:**
 > "Resuming in existing worktree at `<path>` (branch: `<branch>`)"
 1. `cd` into the worktree path
 2. Verify: `git worktree list` shows the worktree
 3. Verify: `git branch --show-current` matches the saved branch
 4. Proceed to Step 1 (or Step 2 for resume)
 
-**If `worktree` field does NOT exist (first execution):**
-1. Check for existing worktrees: `git worktree list`
-2. If a worktree already exists for this project → use it (save to progress.json)
-3. If no worktree exists → invoke `harness-worktrees` to create one:
-   > "No worktree found. Creating one for isolated development..."
-   - Run `harness-worktrees` (this will create the worktree and run baseline tests)
-   - After worktrees skill completes, save the worktree path and branch to progress.json:
-     ```bash
-     harness-milestone set-worktree "<worktree-path>" "<branch-name>"
-     ```
-4. `cd` into the worktree path
-5. Proceed to Step 1
+**If `worktree` field does NOT exist or the directory is gone (new milestone):**
+1. Update version branch with any changes: `git status` — ensure clean
+2. Create a per-milestone worktree:
+   ```bash
+   # Determine worktree path and branch name
+   # Branch: harness/<milestone-id>-<short-description>
+   # Path: read from harness.config.json worktrees_dir, or default to "worktrees"
+   WORKTREES_DIR=$(python3 -c "import json; d=json.load(open('harness.config.json')); print(d.get('worktrees_dir', 'worktrees'))" 2>/dev/null || echo "worktrees")
+   MILESTONE_ID=$(python3 -c "import json; d=json.load(open('status/claude-progress.json')); ms=[m for m in d['milestones'] if not m.get('passed')]; print(ms[0]['id'] if ms else 'unknown')")
+   MILESTONE_TITLE=$(python3 -c "import json; d=json.load(open('status/claude-progress.json')); ms=[m for m in d['milestones'] if not m.get('passed')]; print(ms[0]['title'].split()[0].lower() if ms else 'work')")
 
-**Note:** The worktree is shared across all milestones. It is created once and reused for the entire project.
+   BRANCH_NAME="harness/${MILESTONE_ID}-${MILESTONE_TITLE}"
+   WORKTREE_PATH="${WORKTREES_DIR}/${MILESTONE_ID}"
+
+   git worktree add "${WORKTREE_PATH}" -b "${BRANCH_NAME}"
+   ```
+3. Run baseline tests in the worktree:
+   ```bash
+   cd "${WORKTREE_PATH}" && <run test suite>
+   ```
+4. Save worktree info to progress.json:
+   ```bash
+   harness-milestone set-worktree "${WORKTREE_PATH}" "${BRANCH_NAME}"
+   ```
+5. `cd` into the worktree path
+6. Proceed to Step 1
+
+**Note:** Each milestone creates its own worktree based on the current version branch (which already contains previous milestones' merged work). When a milestone completes, its worktree is merged back and cleaned up (see Post-Milestone Cleanup below).
 
 Read the plan file. If not specified, ask: "Which plan file should I execute? (path to the `.md` file in `docs/harness/plans/`)"
 
@@ -71,10 +123,14 @@ After reading the plan file:
 
 ### Step 2: Check Codex Availability
 
-Run `/codex:setup` to check if Codex is installed and authenticated.
+Run Codex availability check:
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" setup --json
+```
 
 - If Codex is ready → set `codex_available = true`
-- If Codex is missing but npm is available → inform user: "Codex is not installed. `/codex:setup` can install it. Would you like to install now?"
+- If Codex is missing but npm is available → inform user: "Codex is not installed. Run `npm install -g @openai/codex` to install it."
 - If unavailable → set `codex_available = false`
 
 ### Step 3: Engine Pre-Configuration (Per-session — MUST re-collect after every /clear)
@@ -174,13 +230,18 @@ The dispatch mechanism depends on the engine selected in Step 3:
 → Use `Agent` tool (Task/Subagent) with the corresponding prompt template
 
 **Codex engines (Codex review, Codex adversarial-review, Codex rescue):**
-→ **Output as TEXT directly in the main session.** The slash command is text output, NOT a tool call.
+→ Use `Bash` tool to call `codex-companion.mjs` directly. The companion script is the actual implementation behind slash commands and works from sub-agent contexts.
+→ Codex availability detection sets `CLAUDE_PLUGIN_ROOT`. If not set, use:
+  `CLAUDE_PLUGIN_ROOT="${HOME}/.claude/plugins/marketplaces/openai-codex/plugins/codex"`
 → Examples:
-  - Spec Review (Codex): `/codex:review --background "<task description>"`
-  - Code Quality Review (Codex): `/codex:adversarial-review --background "<task description>"`
-  - Executor rescue (Codex): `/codex:rescue <task> --background [--model X] [--effort Y]`
+  - Spec Review (Codex): `Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" review --background --base main)`
+  - Code Quality Review (Codex): `Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" adversarial-review --background --base main [focus text])`
+  - Executor rescue (Codex): `Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" task --background [--model X] [--effort Y] [prompt])`
 
-**NEVER use `Agent` tool or `Task` tool for Codex engines.** Using `Agent` tool for Codex is a HARD-GATE violation. Codex slash commands are handled internally by Claude Code — output them as plain text and Claude Code will dispatch them correctly.
+→ After dispatch:
+   1. Note the **Claude Code task ID** from the Bash response (e.g., `btxsezqf1`)
+   2. Poll using `TaskOutput` tool: `TaskOutput(task_id: "<task-id>", block: false)` — repeat until status is "completed"
+   3. When complete, the `output` field contains the full Codex result (including session-id for logging)
 
 ---
 
@@ -227,7 +288,7 @@ Handle Executor status:
 | `DONE`               | Proceed to Decision Point 1.5: TDD Audit                                                         |
 | `DONE_WITH_CONCERNS` | Read concerns. If they affect correctness or scope, address before proceeding. Otherwise proceed to Decision Point 1.5: TDD Audit |
 | `NEEDS_CONTEXT`      | Provide missing information and re-dispatch Executor                                              |
-| `BLOCKED`            | **Immediately** show /codex:rescue as Option 2 (no waiting for N failures)                     |
+| `BLOCKED`            | **Immediately** show Codex rescue as Option 2 (no waiting for N failures)                     |
 
 **BLOCKED: Always show rescue option (regardless of N setting):**
 
@@ -236,13 +297,13 @@ Handle Executor status:
 > Options:
 >
 > 1. Retry with Claude subagent (provide more context)
-> 2. Use `/codex:rescue` — **always available when BLOCKED**, no need to wait for N failures"
+> 2. Use Codex rescue — **always available when BLOCKED**, no need to wait for N failures"
 >
 > - Option 1: gather context, re-dispatch Claude subagent
-> - Option 2: output `/codex:rescue <task> --background [--model X] [--effort Y]` (do NOT use Bash(codex ...))
+> - Option 2: dispatch Codex rescue via Bash
 
 **N consecutive failures (non-BLOCKED):** After N consecutive `DONE_WITH_CONCERNS` or re-dispatch failures, prompt:
-> "Task N has had N executor failures. Switch to `/codex:rescue` for a fresh perspective?"
+> "Task N has had N executor failures. Switch to Codex rescue for a fresh perspective?"
 
 ### Decision Point 1.5: TDD Audit
 
@@ -274,13 +335,17 @@ After escalation, invoke `activity-logging` with the PROCESS_VIOLATION count.
 
 **If Codex rescue chosen:**
 
-**IMPORTANT: Do NOT use `Bash(codex ...)`**. The `/codex:rescue` command is a **slash command** provided by the codex-plugin-cc plugin — it must be output as text for Claude Code to dispatch internally. Never invoke it as a bash command.
+Dispatch using `codex-companion.mjs` via Bash. Set `CLAUDE_PLUGIN_ROOT` if not available:
 
-Format and send using `codex-review-prompt.md` rescue template. Then:
+```
+Bash:
+command: node "${CLAUDE_PLUGIN_ROOT:-${HOME}/.claude/plugins/marketplaces/openai-codex/plugins/codex}/scripts/codex-companion.mjs" task --background [--model X] [--effort Y] [prompt]
+run_in_background: true
+```
 
-1. Output the slash command directly: `/codex:rescue <task description> --background [--model X] [--effort Y]`
-2. Poll with `/codex:status` until complete
-3. Retrieve with `/codex:result`
+1. Note the `job-id` returned in the command output
+2. Poll: `Bash(node "...codex-companion.mjs" status [job-id] --json)` — wait for `"state": "completed"`
+3. Retrieve: `Bash(node "...codex-companion.mjs" result [job-id] --json)`
 4. Map Codex output to Executor report format (see `codex-review-prompt.md`) and continue as dispatched Executor output
 5. Proceed to Spec Review Decision Point
 
@@ -288,7 +353,11 @@ Format and send using `codex-review-prompt.md` rescue template. Then:
 
 **Using pre-configured Spec Review engine:**
 - Claude subagent → use `Agent` tool with `spec-reviewer-prompt.md`
-- Codex review → **output as text:** `/codex:review --background "<task description>"`
+- Codex review:
+  1. Dispatch: `Bash(node "...codex-companion.mjs" review --background --base main)` with `run_in_background: true`
+  2. Note the Claude Code task ID from the response
+  3. Poll: `TaskOutput(task_id: "<task-id>", block: true, timeout: 300000)` — wait for completion
+  4. Parse the `output` field for verdict (look for "Reviewer finished" = SPEC_COMPLIANT, or issues found = SPEC_ISSUES)
 
 Provide to the dispatched reviewer:
 
@@ -318,7 +387,11 @@ Handle Spec Reviewer verdict:
 
 **Using pre-configured Code Quality Review engine:**
 - Claude subagent → use `Agent` tool with `code-quality-reviewer-prompt.md`
-- Codex adversarial-review → **output as text:** `/codex:adversarial-review --background "<task description>"`
+- Codex adversarial-review:
+  1. Dispatch: `Bash(node "...codex-companion.mjs" adversarial-review --background --base main [focus text])` with `run_in_background: true`
+  2. Note the Claude Code task ID from the response
+  3. Poll: `TaskOutput(task_id: "<task-id>", block: true, timeout: 300000)` — wait for completion
+  4. Parse the `output` field for verdict (look for Critical/Important issues = FAIL, only Minor = PASS)
 
 Provide to the dispatched reviewer:
 
@@ -332,8 +405,6 @@ Handle verdict:
 | ------- | --------------------------------------------------------------------------- |
 | `PASS`  | Task complete — proceed to Post-Task                                        |
 | `FAIL`  | Return to Step 1 — use `Agent` tool to re-dispatch Executor, then re-run both review stages |
-
-**Codex note:** The slash commands `/codex:review` and `/codex:adversarial-review` handle async dispatch and polling internally when output as text in the main session. Do NOT attempt to replicate this via Bash CLI calls.
 
 **Codex fallback (Codex failure):**
 - Auto-fallback: automatically use Claude subagent without prompting
@@ -377,7 +448,7 @@ After Code Quality Review PASS:
 1. **Invoke `activity-logging`** — record task completion with:
    - `executor_engine`: `claude-subagent` or `codex-rescue`
    - `reviewer_engine`: `claude-subagent`, `codex-review`/`codex-adversarial-review`
-   - `codex_session_id`: session-id from `/codex:result` (if Codex was used)
+   - `codex_session_id`: session-id from Codex companion result output (if Codex was used)
 2. **Update plan file** — mark task checkbox: `- [ ]` → `- [x]`
 3. **Update handoff document** — use the `harness-handoff` script:
    ```bash
@@ -389,6 +460,39 @@ After Code Quality Review PASS:
      --next-action "/super-harness:resume"
    ```
 4. **Check if milestone is complete** — if ALL tasks in current milestone are `- [x]`:
+   - **Post-Milestone Cleanup:** Merge the milestone worktree back into the version branch and clean up:
+     1. Return to the main checkout (not the worktree):
+        ```bash
+        cd <project-root>
+        ```
+     2. Ensure we're on the version branch:
+        ```bash
+        git checkout <version-branch>
+        ```
+     3. Merge the milestone branch (fast-forward preferred):
+        ```bash
+        git merge --ff-only <milestone-branch>
+        ```
+        If fast-forward not possible, use `--no-edit`:
+        ```bash
+        git merge <milestone-branch> --no-edit
+        ```
+     4. Remove the worktree:
+        ```bash
+        git worktree remove <worktree-path>
+        ```
+     5. Optionally delete the milestone branch (it's been merged):
+        ```bash
+        git branch -d <milestone-branch>
+        ```
+     6. Clear the worktree field in progress.json:
+        ```bash
+        harness-milestone clear-worktree
+        ```
+     7. Mark milestone as complete:
+        ```bash
+        harness-milestone complete <milestone-id>
+        ```
    - Invoke `harness-handoff` with state=`MILESTONE_DONE` + /clear
    - Session ends. User runs `/super-harness:resume` to start next milestone.
    - Do NOT continue to next task in the same session.

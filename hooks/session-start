@@ -14,7 +14,7 @@ elif [[ -f "claude-progress.json" ]]; then
 fi
 
 # Build the context message
-CONTEXT=CONTEXT="harness is active (v3.4.0 — Orchestrator / Executor / Reviewer architecture).
+CONTEXT="harness is active (v3.5.0 — Orchestrator / Executor / Reviewer architecture).
 
 Available commands:
   /super-harness:brainstorm  — Start structured brainstorming (with optional Visual Companion and scope decomposition)
@@ -83,4 +83,4 @@ output = {
     }
 }
 print(json.dumps(output))
-" "$CONTEXT" 2>/dev/null || echo "{\"hookSpecificOutput\": {\"additionalContext\": \"harness v3.4.0 active. Commands: /super-harness:brainstorm, /super-harness:plan, /super-harness:execute, /super-harness:resume, /super-harness:status\"}}"
+" "$CONTEXT" 2>/dev/null || echo "{\"hookSpecificOutput\": {\"additionalContext\": \"harness v3.5.0 active. Commands: /super-harness:brainstorm, /super-harness:plan, /super-harness:execute, /super-harness:resume, /super-harness:status\"}}"

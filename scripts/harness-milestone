@@ -3,7 +3,7 @@
 # Works on the project repository (must be run from project root)
 #
 # Usage:
-#   harness-milestone init <project-name> [--spec <spec-path>]
+#   harness-milestone init <project-name> [--spec <spec-path>] [--skip-if-exists]
 #   harness-milestone list
 #   harness-milestone add <title> [--spec <spec-path>] [--depends <milestone-id>]
 #   harness-milestone next
@@ -11,6 +11,8 @@
 #   harness-milestone complete <milestone-id>
 #   harness-milestone set-plan <milestone-id> <plan-file-path>
 #   harness-milestone set-worktree <worktree-path> <branch-name>
+#   harness-milestone set-version-branch <branch-name>
+#   harness-milestone clear-worktree
 #
 # Flags:
 #   --project-dir <path>   Use specified directory instead of current directory
@@ -36,13 +38,16 @@ Usage:
 
 Commands:
   init        Initialize a new progress file (for new projects)
+              Use --skip-if-exists to skip if file already exists
   list        List all milestones with their status
   add         Add a new milestone and return its ID
   next        Show the next incomplete milestone
   status      Show project-level status
   complete    Mark a milestone as passed
   set-plan    Link a plan file to a milestone
-  set-worktree Set the worktree path and branch (shared across all milestones)
+  set-worktree Set the worktree path and branch (per-milestone)
+  set-version-branch Set the version branch name (accumulates all milestones)
+  clear-worktree Clear the worktree field (after merge back)
 
 Options:
   --spec <path>           Path to the spec file for this milestone
@@ -100,6 +105,11 @@ if wt:
     print(f"Worktree: {wt.get('path', '')} (branch: {wt.get('branch', '')})")
 else:
     print(f"Worktree: (none)")
+vb = d.get('version_branch')
+if vb:
+    print(f"Version branch: {vb}")
+else:
+    print(f"Version branch: (none)")
 print()
 print('Milestones:')
 print('-' * 80)
@@ -199,7 +209,12 @@ cmd_init() {
     done
 
     if [[ -f "$PROGRESS_FILE" ]]; then
+        if [[ "$*" == *"--skip-if-exists"* ]]; then
+            echo "Progress file already exists at ${PROGRESS_FILE} — skipping init"
+            return 0
+        fi
         echo "Error: Progress file already exists at ${PROGRESS_FILE}"
+        echo "Use --skip-if-exists to skip if file already exists"
         exit 1
     fi
 
@@ -214,6 +229,7 @@ d = {
     'updated_at': '${today}',
     'spec_file': '${spec_path}',
     'current_session_handoff': None,
+    'version_branch': None,
     'worktree': None,
     'milestones': []
 }
@@ -419,6 +435,66 @@ PYEOF
     echo "Worktree set: ${worktree_path} (branch: ${branch_name})"
 }
 
+# Set the version branch name
+cmd_set_version_branch() {
+    local branch_name="$1"
+    local today
+    today=$(date +%Y-%m-%dT%H:%M:%SZ)
+
+    if [[ ! -f "$PROGRESS_FILE" ]]; then
+        echo "Error: No progress file. Run 'harness-milestone init' first."
+        exit 1
+    fi
+
+    if [[ -z "$branch_name" ]]; then
+        echo "Usage: harness-milestone set-version-branch <branch-name>"
+        exit 1
+    fi
+
+    python3 <<PYEOF
+import json, datetime
+
+with open('${PROGRESS_FILE}') as f:
+    d = json.load(f)
+
+d['version_branch'] = '${branch_name}'
+d['updated_at'] = '${today}'
+
+with open('${PROGRESS_FILE}', 'w') as f:
+    json.dump(d, f, indent=2)
+    f.write('\n')
+PYEOF
+
+    echo "Version branch set: ${branch_name}"
+}
+
+# Clear the worktree field (after merging back)
+cmd_clear_worktree() {
+    local today
+    today=$(date +%Y-%m-%dT%H:%M:%SZ)
+
+    if [[ ! -f "$PROGRESS_FILE" ]]; then
+        echo "Error: No progress file. Run 'harness-milestone init' first."
+        exit 1
+    fi
+
+    python3 <<PYEOF
+import json, datetime
+
+with open('${PROGRESS_FILE}') as f:
+    d = json.load(f)
+
+d['worktree'] = None
+d['updated_at'] = '${today}'
+
+with open('${PROGRESS_FILE}', 'w') as f:
+    json.dump(d, f, indent=2)
+    f.write('\n')
+PYEOF
+
+    echo "Worktree cleared"
+}
+
 # Main
 case "$COMMAND" in
     init)       cmd_init "${@:2}" ;;
@@ -429,6 +505,8 @@ case "$COMMAND" in
     complete)   cmd_complete "${@:2}" ;;
     set-plan)   cmd_set_plan "${@:2}" ;;
     set-worktree) cmd_set_worktree "${@:2}" ;;
+    set-version-branch) cmd_set_version_branch "${@:2}" ;;
+    clear-worktree) cmd_clear_worktree ;;
     help|--help|-h) show_help ;;
     *)          show_help; exit 1 ;;
 esac
