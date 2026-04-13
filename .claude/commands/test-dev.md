@@ -20,10 +20,25 @@ python3 -c "import json; print(json.load(open('.claude-plugin/plugin.json'))['ve
 
 ### 3. 更新版本号
 
-更新以下文件：
-- `.claude-plugin/plugin.json`
-- `.claude-plugin/marketplace.json`
-- `hooks/session-start`（两处：CONTEXT 字符串和 fallback echo 字符串）
+```bash
+# 示例：从 3.5.0-dev001 递增到 3.5.0-dev002
+OLD_VERSION="3.5.0-dev001"
+NEW_VERSION="3.5.0-dev002"
+
+# 更新 .claude-plugin/plugin.json
+sed -i '' "s/\"version\": \"$OLD_VERSION\"/\"version\": \"$NEW_VERSION\"/" .claude-plugin/plugin.json
+
+# 更新 .claude-plugin/marketplace.json
+sed -i '' "s/\"version\": \"$OLD_VERSION\"/\"version\": \"$NEW_VERSION\"/" .claude-plugin/marketplace.json
+
+# 更新 hooks/session-start（全局替换）
+sed -i '' "s/$OLD_VERSION/$NEW_VERSION/g" hooks/session-start
+```
+
+验证更新：
+```bash
+grep -r "$NEW_VERSION" .claude-plugin/ hooks/session-start
+```
 
 ### 4. 输出测试指令
 

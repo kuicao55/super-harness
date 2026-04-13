@@ -21,11 +21,12 @@ git status --short
 ### 2. 检查 uncommitted 改动
 
 ```bash
-git status
+git status --short
 ```
 
-- 有改动：提示用户先 commit 或 stash
-- 无改动：✅ 继续
+- `M` 开头的行（Modified staged/unstaged）：需要 commit 或 stash
+- `??` 开头的行（Untracked）：通常是临时文件，可以忽略或添加到 .gitignore
+- 无 `M` 开头的行：✅ 继续
 
 ### 3. 检查 remote 一致性
 

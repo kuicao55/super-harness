@@ -36,8 +36,16 @@ git log main..HEAD --oneline
 #### 1.2 创建 PR 并合并
 
 ```bash
+# 创建 PR 并获取 PR number
+PR_URL=$(gh pr create --title "Release vX.Y.Z" --body "Release notes" --base main)
+gh pr merge --squash --delete-branch
+```
+
+或者手动合并后删除分支：
+```bash
 gh pr create --title "Release vX.Y.Z" --body "Release notes" --base main
-gh pr merge <pr-number> --squash --delete-branch
+# 在 GitHub 网页上手动 merge
+# 然后继续执行后续步骤
 ```
 
 #### 1.3 切换到 main 并分析真正要 release 的变更
@@ -69,9 +77,10 @@ git diff HEAD~1
 
 ### 4. 更新所有文件中的版本号
 
-- 在整个项目中搜索当前版本号（或即将发布的版本号）
-- 将所有出现的地方替换为新版本号
-- 常见位置：`.claude-plugin/plugin.json`、`.claude-plugin/marketplace.json`、`README.md`、`hooks/session-start`、`skills/*/SKILL.md`
+- 在整个项目中搜索当前的 dev 版本号（如 `3.5.0-dev001`）
+- 将所有出现的地方替换为新正式版本号（如 `3.5.1`）
+- 使用全局替换：`sed -i '' 's/<old-version>/<new-version>/g' <files>`
+- 常见位置：`.claude-plugin/plugin.json`、`.claude-plugin/marketplace.json`、`README.md`、`hooks/session-start`
 - **必须**更新 `.claude-plugin/marketplace.json` 中的 version 字段
 
 ### 5. 提交并推送
@@ -100,7 +109,7 @@ git diff HEAD~1
 - 更新 `/Users/kuicao/Applications/claude-plugins/README.md` 中的版本号描述
 - `cd /Users/kuicao/Applications/claude-plugins && git add && git commit -m "chore: bump super-harness to vX.Y.Z" && git push origin main`
 
-### 6.5 最终清理检查
+### 8.5 最终清理检查
 
 ```bash
 git status          # 确认工作目录干净
